@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Selection</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/addons/p5.sound.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        body {
+            background-color: #1a1a2e; /* A solid dark color is used instead. */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 46, 0.7);
+            z-index: 1;
+        }
+        #menu-container, #game-canvas-container {
+            position: relative;
+            z-index: 2;
+        }
+        #menu-container {
+            text-align: center;
+            padding: 40px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #e0e0ff;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .game-button, .control-button {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            padding: 15px;
+            margin: 15px auto;
+            font-size: 1.1em;
+            color: #fff;
+            background-color: #4a4a8a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .game-button:hover, .control-button:hover:not(:disabled) {
+            background-color: #6a6ac0;
+            transform: translateY(-2px);
+        }
+        .game-button:active, .control-button:active:not(:disabled) { transform: translateY(1px); }
+        .game-button:disabled, .control-button:disabled {
+            background-color: #3a3a6a;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #game-canvas-container {
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        #status-message {
+            margin-top: 20px;
+            color: #ffb3b3;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay"></div>
+
+    <div id="menu-container">
+        <h1>Choose Your Challenge</h1>
+        <button id="play-hiding-game" class="game-button">Find Hiding Mimesis</button>
+        <button id="more-games-button" class="control-button mt-8" disabled>More games coming soon</button>
+        <p id="status-message" style="display: none;"></p>
+    </div>
+
+    <div id="game-canvas-container"></div>
+
+    <script>
+        // --- Configuration ---
+        const BACKEND_API_URL = "https://game.koalarepublic.top";
+
+        // --- UI Elements ---
+        const menuContainer = document.getElementById('menu-container');
+        const canvasContainer = document.getElementById('game-canvas-container');
+        const hidingButton = document.getElementById('play-hiding-game');
+        const statusMessage = document.getElementById('status-message');
+
+        // --- Game State ---
+        let loadedGameScript = null;
+        let p5Instance = null;
+        let discordToken = null; // This will hold the one-time token from the URL
+
+        // --- Core Functions ---
+        
+        /**
+         * This function runs when the page loads. It extracts the one-time token
+         * from the URL and prepares the page for the user to play.
+         */
+        function initializePage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            discordToken = urlParams.get('token');
+
+            if (discordToken) {
+                console.log("One-time token loaded successfully.");
+                hidingButton.disabled = false;
+                // Clean the URL so the token isn't visible or reusable by refreshing.
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+                console.error("No token found. User cannot submit a score.");
+                hidingButton.disabled = true;
+                statusMessage.textContent = "Please get a new link from Discord to play.";
+                statusMessage.style.display = 'block';
+            }
+        }
+
+        /**
+         * Submits the player's score to the backend.
+         * This function is called from within the p5.js game script.
+         * @param {number} score - The final score from the game.
+         */
+        window.saveScore = async function(gameId, score) {
+            if (!discordToken) {
+                console.warn("Cannot save score: No token available.");
+                alert("Could not save score: Your session is invalid. Please get a new link from Discord.");
+                return;
+            }
+
+            // --- VALIDATION ---
+            // Check if the score is a valid number before sending.
+            if (typeof score !== 'number' || isNaN(score)) {
+                console.error(`Invalid score type received: ${score} (type: ${typeof score}). Aborting submission.`);
+                alert(`Could not save score: Invalid score value provided by the game.`);
+                return;
+            }
+            
+            console.log(`Submitting score: ${score} for game: ${gameId}`);
+            try {
+                const response = await fetch(`${BACKEND_API_URL}/api/score`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': discordToken
+                    },
+                    // --- MODIFIED ---
+                    // The body now includes both the gameId and the score.
+                    body: JSON.stringify({ gameId: gameId, score: score }),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    // Display specific error from the server (e.g., "token already used")
+                    throw new Error(result.error || "Server failed to save score.");
+                }
+                
+                console.log("Score saved successfully:", result.message);
+                alert(`Score submitted! ${result.message}`);
+
+            } catch (error) {
+                console.error("Error saving score:", error);
+                alert(`Error: ${error.message}`);
+            } finally {
+                // The token is single-use, so disable the play button after one submission.
+                hidingButton.disabled = true;
+                statusMessage.textContent = "Score submitted! Please get a new link to play again.";
+                statusMessage.style.display = 'block';
+            }
+        }
+
+        /**
+         * Cleans up any existing p5.js instance and game script.
+         */
+        function cleanupPreviousGame() {
+            if (p5Instance) {
+                if (typeof p5Instance.cleanup === 'function') p5Instance.cleanup();
+                if (typeof p5Instance.remove === 'function') p5Instance.remove();
+                p5Instance = null;
+            }
+            if (loadedGameScript && loadedGameScript.parentNode) {
+                loadedGameScript.parentNode.removeChild(loadedGameScript);
+                loadedGameScript = null;
+            }
+            canvasContainer.innerHTML = '';
+            canvasContainer.style.display = 'none';
+            menuContainer.style.display = 'block';
+        }
+
+        /**
+         * Loads a p5.js game script dynamically.
+         * @param {string} scriptPath - The path to the game's .js file.
+         * @param {string} sketchFunctionName - The name of the global sketch function in the script.
+         */
+        function loadGame(scriptPath, sketchFunctionName) {
+            cleanupPreviousGame();
+            menuContainer.style.display = 'none';
+            canvasContainer.style.display = 'flex';
+
+            const gameScript = document.createElement('script');
+            gameScript.src = scriptPath;
+            gameScript.defer = true;
+            gameScript.onload = () => {
+                if (typeof window[sketchFunctionName] === 'function') {
+                    try {
+                        p5Instance = new p5(window[sketchFunctionName], 'game-canvas-container');
+                    } catch (err) {
+                        console.error(`Error creating p5 instance:`, err);
+                        cleanupPreviousGame();
+                    }
+                } else {
+                    console.error(`Sketch function '${sketchFunctionName}' not found.`);
+                    cleanupPreviousGame();
+                }
+            };
+            gameScript.onerror = (err) => {
+                console.error(`Failed to load script: ${scriptPath}`, err);
+                cleanupPreviousGame();
+            };
+            document.body.appendChild(gameScript);
+            loadedGameScript = gameScript;
+        }
+
+        // --- Event Listeners ---
+        hidingButton.addEventListener('click', () => loadGame('find_hiding_ori.js', 'sketchFindHidingGame'));
+        
+        window.addEventListener('resize', () => {
+            if (p5Instance && typeof p5Instance.windowResized === 'function') {
+                p5Instance.windowResized();
+            }
+        });
+
+        // Initialize the page when the window loads.
+        window.onload = initializePage;
+    </script>
+</body>
+</html>
