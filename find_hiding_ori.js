@@ -350,8 +350,8 @@ function sketchFindHidingGame(p) {
 
     p.mousePressed = function() {
         if (gameState !== 'playing') return;
-
-        const targetRadius = p.width * 0.02; // Make target radius responsive
+        const isMobile = p.windowWidth < 768;
+        const targetRadius = isMobile ? p.width * 0.04 : p.width * 0.02; // Double radius on mobile
         let d = p.dist(p.mouseX, p.mouseY, translatedTarget.x, translatedTarget.y);
 
         const feedbackTextSize = p.constrain(p.width * 0.08, 32, 60);
