@@ -12,7 +12,7 @@ function sketchFindHidingGame(p) {
     let score = 0;
     const maxTime = 30;
     let timer = maxTime;
-    let gameState = 'loading'; // States: loading, countdown, playing, gameOver, error
+    let gameState = 'initializing'; // States: loading, countdown, playing, gameOver, error
 
     // --- UI, Animation, and Visual Effect Variables ---
     let particles = [];
@@ -22,6 +22,18 @@ function sketchFindHidingGame(p) {
     let lastCountdownTime = 0;
     let isFirstLevel = true;
 
+    // --- MODIFIED: Added preload function for sounds ---
+    p.preload = function() {
+        // p5.js sound library is used to load audio assets
+        p.soundFormats('mp3');
+        try {
+            bgm = p.loadSound('src/bgm/puzzle take1.mp3');
+            sfxGood = p.loadSound('src/sfx/good.mp3');
+            sfxWrong = p.loadSound('src/sfx/wrong.mp3');
+        } catch (e) {
+            console.error("Error loading sound assets. Make sure the paths are correct.", e);
+        }
+    }
 
     p.setup = function() {
         // Set canvas size based on the container provided in index.html
@@ -40,7 +52,6 @@ function sketchFindHidingGame(p) {
                 alpha: p.random(50, 150)
             });
         }
-        resetGame();
     };
     
     p.windowResized = function() {
@@ -117,7 +128,7 @@ function sketchFindHidingGame(p) {
             endGame("You found them all!");
             return;
         }
-        gameState = 'loading';
+        // gameState = 'loading';
         const nextImageFile = remainingImages.shift(); 
         const baseFileName = nextImageFile.replace(/\.[^/.]+$/, "");
         const imagePath = assetFolder + nextImageFile;
@@ -130,7 +141,7 @@ function sketchFindHidingGame(p) {
     }
 
     function onAssetsLoaded() {
-        if (gameState !== 'loading') return;
+        if (gameState !== 'loading' && gameState !== 'level_transition') return;
         if (isFirstLevel) {
             gameState = 'countdown';
             countdownValue = 3;
@@ -165,7 +176,13 @@ function sketchFindHidingGame(p) {
         drawDynamicBackground();
 
         switch (gameState) {
+            case 'initializing':
+                // This state runs only once on the first frame
+                gameState = 'loading'; // Immediately switch to loading
+                resetGame(); // Start the async asset loading
+                break;
             case 'loading':
+                p.textAlign(p.CENTER, p.CENTER);
                 drawText("Loading...", p.width / 2, p.height / 2, p.width * 0.08);
                 break;
             case 'countdown':
@@ -173,6 +190,9 @@ function sketchFindHidingGame(p) {
                 break;
             case 'playing':
                 runGame();
+                break;
+            case 'level_transition':
+                runGame(); // Continue drawing the current level and animations
                 break;
             case 'gameOver':
                 p.fill(0, 0, 0, 150);
@@ -208,6 +228,10 @@ function sketchFindHidingGame(p) {
         }
         if (countdownValue < 1) {
             gameState = 'playing';
+            if (bgm && bgm.isLoaded() && !bgm.isPlaying()) {
+                bgm.setVolume(0.3);
+                bgm.loop();
+            }
         }
     }
 
@@ -357,12 +381,24 @@ function sketchFindHidingGame(p) {
         const feedbackTextSize = p.constrain(p.width * 0.08, 32, 60);
 
         if (d < targetRadius) {
+            if (sfxGood && sfxGood.isLoaded()) {
+                sfxGood.setVolume(0.5);
+                sfxGood.play();
+            }
             score++;
             timer = p.min(timer + 5, maxTime);
             feedbackAnimations.push({ type: 'text', text: '+5s', x: p.mouseX, y: p.mouseY - 40, size: feedbackTextSize, alpha: 255, color: [76, 175, 80] });
             feedbackAnimations.push({ type: 'ring', x: translatedTarget.x, y: translatedTarget.y, radius: targetRadius * 0.5, alpha: 255, color: [76, 175, 80] });
-            nextLevel();
+            // --- MODIFIED: Delay the next level to show animations ---
+            gameState = 'level_transition'; // Pause input and timer
+            setTimeout(() => {
+                nextLevel();
+            }, 400); // 400ms delay
         } else {
+            if (sfxWrong && sfxWrong.isLoaded()) {
+                sfxWrong.setVolume(0.5);
+                sfxWrong.play();
+            }
             timer -= 2;
             feedbackAnimations.push({ type: 'text', text: '-2s', x: p.mouseX, y: p.mouseY, size: feedbackTextSize, alpha: 255, color: [255, 77, 77] });
             feedbackAnimations.push({ type: 'ring', x: p.mouseX, y: p.mouseY, radius: targetRadius * 0.5, alpha: 200, color: [255, 77, 77] });

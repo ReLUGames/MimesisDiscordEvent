@@ -111,6 +111,7 @@
 
     <script>
         // --- Configuration ---
+        const DEV_MODE = false; // Set to true to skip server checks, false for production.
         const BACKEND_API_URL = "https://game.koalarepublic.top";
 
         // --- UI Elements ---
@@ -122,22 +123,25 @@
         // --- Game State ---
         let loadedGameScript = null;
         let p5Instance = null;
-        let discordToken = null; // This will hold the one-time token from the URL
+        let discordToken = null;
 
         // --- Core Functions ---
         
-        /**
-         * This function runs when the page loads. It extracts the one-time token
-         * from the URL and prepares the page for the user to play.
-         */
         function initializePage() {
+            if (DEV_MODE) {
+                console.warn("DEV MODE is active. Server calls will be skipped.");
+                hidingButton.disabled = false;
+                statusMessage.textContent = "DEV MODE: Ready to play.";
+                statusMessage.style.display = 'block';
+                return;
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             discordToken = urlParams.get('token');
 
             if (discordToken) {
                 console.log("One-time token loaded successfully.");
                 hidingButton.disabled = false;
-                // Clean the URL so the token isn't visible or reusable by refreshing.
                 window.history.replaceState({}, document.title, window.location.pathname);
             } else {
                 console.error("No token found. User cannot submit a score.");
@@ -147,20 +151,22 @@
             }
         }
 
-        /**
-         * Submits the player's score to the backend.
-         * This function is called from within the p5.js game script.
-         * @param {number} score - The final score from the game.
-         */
         window.saveScore = async function(gameId, score) {
+            if (DEV_MODE) {
+                console.log(`DEV MODE: Faking score submission for game '${gameId}' with score: ${score}`);
+                alert(`DEV MODE: Score of ${score} would be submitted.`);
+                hidingButton.disabled = true;
+                statusMessage.textContent = "DEV MODE: Score submitted! Get a new link to play again.";
+                statusMessage.style.display = 'block';
+                return;
+            }
+
             if (!discordToken) {
                 console.warn("Cannot save score: No token available.");
                 alert("Could not save score: Your session is invalid. Please get a new link from Discord.");
                 return;
             }
 
-            // --- VALIDATION ---
-            // Check if the score is a valid number before sending.
             if (typeof score !== 'number' || isNaN(score)) {
                 console.error(`Invalid score type received: ${score} (type: ${typeof score}). Aborting submission.`);
                 alert(`Could not save score: Invalid score value provided by the game.`);
@@ -175,15 +181,12 @@
                         'Content-Type': 'application/json',
                         'Authorization': discordToken
                     },
-                    // --- MODIFIED ---
-                    // The body now includes both the gameId and the score.
                     body: JSON.stringify({ gameId: gameId, score: score }),
                 });
 
                 const result = await response.json();
 
                 if (!response.ok) {
-                    // Display specific error from the server (e.g., "token already used")
                     throw new Error(result.error || "Server failed to save score.");
                 }
                 
@@ -194,16 +197,12 @@
                 console.error("Error saving score:", error);
                 alert(`Error: ${error.message}`);
             } finally {
-                // The token is single-use, so disable the play button after one submission.
                 hidingButton.disabled = true;
                 statusMessage.textContent = "Score submitted! Please get a new link to play again.";
                 statusMessage.style.display = 'block';
             }
         }
 
-        /**
-         * Cleans up any existing p5.js instance and game script.
-         */
         function cleanupPreviousGame() {
             if (p5Instance) {
                 if (typeof p5Instance.cleanup === 'function') p5Instance.cleanup();
@@ -219,11 +218,6 @@
             menuContainer.style.display = 'block';
         }
 
-        /**
-         * Loads a p5.js game script dynamically.
-         * @param {string} scriptPath - The path to the game's .js file.
-         * @param {string} sketchFunctionName - The name of the global sketch function in the script.
-         */
         function loadGame(scriptPath, sketchFunctionName) {
             cleanupPreviousGame();
             menuContainer.style.display = 'none';
