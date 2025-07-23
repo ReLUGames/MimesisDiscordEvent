@@ -18,7 +18,7 @@
             overflow: hidden; /* Prevent scrollbars */
         }
         body {
-            background-color: #1a1a2e; /* A solid dark color is used instead. */
+            background-image: url('src/ui/BG.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -54,6 +54,7 @@
             margin-bottom: 30px;
             font-size: 2.5em;
         }
+        /* MODIFIED: Updated button styles for image backgrounds */
         .game-button, .control-button {
             display: block;
             width: 100%;
@@ -62,24 +63,33 @@
             margin: 15px auto;
             font-size: 1.1em;
             color: #fff;
-            background-color: #4a4a8a;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7); /* Added for better readability on image */
+            background-color: transparent; /* Use transparent bg */
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
         }
+        .game-button {
+            background-image: url('src/ui/Button_02.png');
+            background-size: 100% 100%;
+        }
+        /* MODIFIED: Hover effect is now handled by JS, only transform remains */
         .game-button:hover, .control-button:hover:not(:disabled) {
-            background-color: #6a6ac0;
             transform: translateY(-2px);
         }
-        .game-button:active, .control-button:active:not(:disabled) { transform: translateY(1px); }
+        .game-button:active, .control-button:active:not(:disabled) { 
+            transform: translateY(1px); 
+        }
         .game-button:disabled, .control-button:disabled {
             background-color: #3a3a6a;
             opacity: 0.6;
             cursor: not-allowed;
         }
         #game-canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             display: none;
@@ -248,6 +258,61 @@
         }
 
         // --- Event Listeners ---
+        const gameButtons = document.querySelectorAll('.game-button');
+        const hoverFrames = [
+            'src/ui/Line0000.png', 'src/ui/Line0001.png', 'src/ui/Line0002.png',
+            'src/ui/Line0003.png', 'src/ui/Line0004.png', 'src/ui/Line0005.png'
+        ];
+        const pressedButtonImg = 'url("src/ui/Button_01.png")';
+
+        gameButtons.forEach(button => {
+            let hoverInterval = null;
+
+            // Starts the hover animation
+            button.addEventListener('mouseenter', () => {
+                // Don't animate if disabled or currently being pressed down
+                if (button.disabled || button.matches(':active')) return;
+
+                let frameIndex = 0;
+                hoverInterval = setInterval(() => {
+                    button.style.backgroundImage = `url('${hoverFrames[frameIndex]}'), url('src/ui/Button_02.png')`;
+                    button.style.backgroundSize = '150%, 100%';
+                    button.style.backgroundPosition = 'center, center';
+                    frameIndex = (frameIndex + 1) % hoverFrames.length;
+                }, 100);
+            });
+            
+            // Reusable function to stop animation and reset to default
+            const stopHover = () => {
+                if (hoverInterval) {
+                    clearInterval(hoverInterval);
+                    hoverInterval = null;
+                }
+                button.style.backgroundImage = ''; 
+                button.style.backgroundSize = '';
+                button.style.backgroundPosition = '';
+            };
+            
+            button.addEventListener('mouseleave', stopHover);
+
+            // Handles the "pressed" button state
+            button.addEventListener('mousedown', () => {
+                if (button.disabled) return;
+                stopHover(); // Stop hover animation immediately on click
+                button.style.backgroundImage = pressedButtonImg;
+            });
+
+            // Handles reverting from the "pressed" state
+            button.addEventListener('mouseup', () => {
+                if (button.disabled) return;
+                button.style.backgroundImage = ''; // Revert to default
+                // If the mouse is still over the button, restart the hover animation
+                if (button.matches(':hover')) {
+                    button.dispatchEvent(new Event('mouseenter'));
+                }
+            });
+        });
+
         hidingButton.addEventListener('click', () => loadGame('find_hiding_ori.js', 'sketchFindHidingGame'));
         
         window.addEventListener('resize', () => {
