@@ -173,6 +173,7 @@
                     // Token exists and is already completed.
                     statusMessage.textContent = "This session has expired. Please get a new link from Discord to play.";
                     statusMessage.style.display = 'block';
+                    console.log("Token already used.")
                     return;
                 } else {
                     // Token is either new or has not been completed yet.
