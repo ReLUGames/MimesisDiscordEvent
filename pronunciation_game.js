@@ -795,7 +795,7 @@ var sketchPronunciationGame = function(p) {
         if (gameState !== 'GAME_OVER' && targetWord) {
             let wordBoxY = p.height * 0.35;
             let boxWidth = p.width * (isMobile ? 0.9 : 0.8);
-            let boxHeight = isMobile ? 80 : 100;
+            let boxHeight = isMobile ? 100 : 120;
             
             // Glowing box effect
             if (gameState === 'LISTENING') {
