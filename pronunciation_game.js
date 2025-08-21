@@ -618,6 +618,7 @@ var sketchPronunciationGame = function(p) {
         }
         
         // Add subtle stars
+        p.push();
         p.randomSeed(42);
         for (let i = 0; i < 30; i++) {
             let x = p.random(p.width);
@@ -627,6 +628,7 @@ var sketchPronunciationGame = function(p) {
             p.noStroke();
             p.ellipse(x, y, 2);
         }
+        p.pop();
     }
 
     function drawPlayAreaVignette() {
