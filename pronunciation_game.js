@@ -750,6 +750,19 @@ var sketchPronunciationGame = function(p) {
         }
     }
 
+    // Add this new function to your script
+    function shuffleArray(array) {
+        // Create a copy to avoid modifying the original data
+        let newArray = array.slice(); 
+        for (let i = newArray.length - 1; i > 0; i--) {
+            // Pick a random index from 0 to i
+            const j = Math.floor(Math.random() * (i + 1));
+            // Swap elements
+            [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+        }
+        return newArray;
+    }
+
     function displayUiText() {
         p.push();
         p.fill(255);
@@ -1077,7 +1090,7 @@ var sketchPronunciationGame = function(p) {
             }
 
             const allSentencesForRound = languageData[langKey].words[currentRound];
-            currentRoundWordList = p.shuffle(allSentencesForRound);
+            currentRoundWordList = shuffleArray(allSentencesForRound);
         }
 
         if (currentRoundWordList && currentRoundWordList.length > 0) {
