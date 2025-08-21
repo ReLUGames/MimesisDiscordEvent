@@ -7,7 +7,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/p5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/addons/p5.sound.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
         html, body {
             margin: 0;
@@ -114,6 +113,7 @@
     <div id="menu-container">
         <h1>Choose Your Challenge</h1>
         <button id="play-hiding-game" class="game-button" disabled>Find Hiding Mimesis</button>
+        <button id="play-pronunciation-game" class="game-button" disabled>Prove you are not a Mimesis</button>
         <button id="more-games-button" class="control-button mt-8" disabled>More games coming soon</button>
         <p id="status-message" style="display: none;"></p>
     </div>
@@ -122,13 +122,15 @@
 
     <script>
         // --- Configuration ---
-        const DEV_MODE = false; // Set to true to skip server checks, false for production.
+        const DEV_MODE = true; // Set to true to skip server checks, false for production.
         const BACKEND_API_URL = "https://game.koalarepublic.top";
 
         // --- UI Elements ---
         const menuContainer = document.getElementById('menu-container');
         const canvasContainer = document.getElementById('game-canvas-container');
         const hidingButton = document.getElementById('play-hiding-game');
+        // const listenFindButton = document.getElementById('play-listen-find-game');
+        const pronunciationButton = document.getElementById('play-pronunciation-game');
         const statusMessage = document.getElementById('status-message');
         const allGameButtons = document.querySelectorAll('.game-button');
 
@@ -215,7 +217,26 @@
 
             if (DEV_MODE) {
                 console.log(`DEV MODE: Faking score submission for game '${gameId}' with score: ${score}`);
-                alert(`DEV MODE: Score of ${score} would be submitted.`);
+                
+                // Log the exact API request details that would be sent
+                const apiRequestDetails = {
+                    url: `${BACKEND_API_URL}/api/score`,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': activeToken
+                    },
+                    body: JSON.stringify({ gameId: gameId, score: score })
+                };
+                
+                console.log('DEV MODE: API Request Details:');
+                console.log('URL:', apiRequestDetails.url);
+                console.log('Method:', apiRequestDetails.method);
+                console.log('Headers:', apiRequestDetails.headers);
+                console.log('Body (JSON string):', apiRequestDetails.body);
+                console.log('Body (parsed object):', JSON.parse(apiRequestDetails.body));
+                
+                alert(`DEV MODE: Score of ${score} would be submitted. Check console for API details.`);
                 allGameButtons.forEach(button => button.disabled = true);
                 statusMessage.textContent = "DEV MODE: Score submitted! Get a new link to play again.";
                 statusMessage.style.display = 'block';
@@ -356,7 +377,8 @@
         });
 
         hidingButton.addEventListener('click', () => loadGame('find_hiding_ori.js', 'sketchFindHidingGame'));
-        
+        // listenFindButton.addEventListener('click', () => loadGame('listen_and_find.js', 'sketchListenGame'));
+        pronunciationButton.addEventListener('click', () => loadGame('pronunciation_game.js', 'sketchPronunciationGame'));
         window.addEventListener('resize', () => {
             if (p5Instance && typeof p5Instance.windowResized === 'function') {
                 p5Instance.windowResized();
