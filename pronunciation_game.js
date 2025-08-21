@@ -78,7 +78,7 @@ var sketchPronunciationGame = function(p) {
     }
 
     // --- Game Variables ---
-    const GAME_ID = 'pronunciation';
+    const GAME_ID = 'human';
     const SIMILARITY_THRESHOLD = 0.8;
     let gameState = 'SELECT_LANGUAGE';
     let currentRound = 0;
