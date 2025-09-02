@@ -448,7 +448,7 @@ function sketchSpotTheDifference(p) {
         const gameSalt = sessionStorage.getItem('currentGameSalt');
         const scoreEvent = new CustomEvent('gameComplete', {
             detail: {
-                gameId: GAME_ID, 
+                gameId: "spot_the_difference", 
                 score: score, 
                 salt: gameSalt 
             }
