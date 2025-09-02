@@ -114,6 +114,7 @@
         <h1>Choose Your Challenge</h1>
         <button id="play-hiding-game" class="game-button" disabled>Find Hiding Mimesis</button>
         <button id="play-pronunciation-game" class="game-button" disabled>Prove you are not a Mimesis</button>
+        <button id="play-spot-difference-game" class="game-button" disabled>Spot the Difference</button>
         <button id="more-games-button" class="control-button mt-8" disabled>More games coming soon</button>
         <p id="status-message" style="display: none;"></p>
     </div>
@@ -131,6 +132,7 @@
         const hidingButton = document.getElementById('play-hiding-game');
         // const listenFindButton = document.getElementById('play-listen-find-game');
         const pronunciationButton = document.getElementById('play-pronunciation-game');
+        const spotDifferenceButton = document.getElementById('play-spot-difference-game');
         const statusMessage = document.getElementById('status-message');
         const allGameButtons = document.querySelectorAll('.game-button');
 
@@ -379,6 +381,8 @@
         hidingButton.addEventListener('click', () => loadGame('find_hiding_ori.js', 'sketchFindHidingGame'));
         // listenFindButton.addEventListener('click', () => loadGame('listen_and_find.js', 'sketchListenGame'));
         pronunciationButton.addEventListener('click', () => loadGame('pronunciation_game.js', 'sketchPronunciationGame'));
+        spotDifferenceButton.addEventListener('click', () => loadGame('spotdifference.js', 'sketchSpotTheDifference'));
+        
         window.addEventListener('resize', () => {
             if (p5Instance && typeof p5Instance.windowResized === 'function') {
                 p5Instance.windowResized();
