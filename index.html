@@ -216,15 +216,14 @@
             console.log(`Submitting score: ${score} for game: ${gameId}`);
             try {
                 const payload = { gameId, score };
-                const encodedPayload = btoa(JSON.stringify(payload));
 
                 const response = await fetch(`${BACKEND_API_URL}/api/score`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'text/plain', 
+                        'Content-Type': 'application/json', 
                         'Authorization': activeToken
                     },
-                    body: encodedPayload,
+                    body: JSON.stringify(payload),
                 });
 
                 const result = await response.json();
