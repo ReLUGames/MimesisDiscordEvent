@@ -389,7 +389,6 @@ function sketchFindHidingGame(p) {
             timer = p.min(timer + 5, maxTime);
             feedbackAnimations.push({ type: 'text', text: '+5s', x: p.mouseX, y: p.mouseY - 40, size: feedbackTextSize, alpha: 255, color: [76, 175, 80] });
             feedbackAnimations.push({ type: 'ring', x: translatedTarget.x, y: translatedTarget.y, radius: targetRadius * 0.5, alpha: 255, color: [76, 175, 80] });
-            // --- MODIFIED: Delay the next level to show animations ---
             gameState = 'level_transition'; // Pause input and timer
             setTimeout(() => {
                 nextLevel();
@@ -408,7 +407,15 @@ function sketchFindHidingGame(p) {
     function endGame(message) {
         if (gameState === 'gameOver') return;
         gameState = 'gameOver';
-        if (window.saveScore) window.saveScore('hiding', score);
+        const gameSalt = sessionStorage.getItem('currentGameSalt');
+        const scoreEvent = new CustomEvent('gameComplete', {
+            detail: {
+                gameId: GAME_ID, 
+                score: score, 
+                salt: gameSalt
+            }
+        });
+        window.dispatchEvent(scoreEvent);
         
         setTimeout(() => {
             p.noLoop();

@@ -226,33 +226,21 @@ function sketchSpotTheDifference(p) {
         }
     }
     
-    // --- MODIFIED: Redesigned the game layout with padding and separated UI ---
     function runGame() {
-        // --- 1. Define layout constants ---
         const panelHeight = p.constrain(p.height * 0.1, 70, 90);
-        const padding = p.min(p.width, p.height) * 0.02; // 2% padding based on smallest screen dimension
-
-        // --- 2. Calculate the areas for the two images ---
-        // The total available height is the screen height minus the bottom UI panel.
+        const padding = p.min(p.width, p.height) * 0.02;
         const availableGameHeight = p.height - panelHeight;
-        // This height is then divided between the two images, with padding on top, middle, and bottom.
         const singleImageAreaHeight = (availableGameHeight - padding * 3) / 2;
 
         const topArea = {
-            x: padding,
-            y: padding,
-            w: p.width - padding * 2,
-            h: singleImageAreaHeight
+            x: padding, y: padding,
+            w: p.width - padding * 2, h: singleImageAreaHeight
         };
-
         const bottomArea = {
-            x: padding,
-            y: padding + singleImageAreaHeight + padding, // Positioned after the top image and middle padding
-            w: p.width - padding * 2,
-            h: singleImageAreaHeight
+            x: padding, y: padding + singleImageAreaHeight + padding,
+            w: p.width - padding * 2, h: singleImageAreaHeight
         };
 
-        // --- 3. Draw the fitted images into their calculated areas ---
         const drawFittedImage = (img, area) => {
             if (!img || img.width <= 1 || area.h <= 0) return { imgX: 0, imgY: 0, imgWidth: 0, imgHeight: 0 };
             let imgRatio = img.width / img.height;
@@ -272,20 +260,15 @@ function sketchSpotTheDifference(p) {
             return { imgX, imgY, imgWidth, imgHeight };
         };
 
-        const topImgMetrics = drawFittedImage(imageA, topArea);
+        drawFittedImage(imageA, topArea);
         const bottomImgMetrics = drawFittedImage(imageB, bottomArea);
-
-        // --- 4. Draw the new text indicators ---
+        
         const textSize = p.constrain(p.width * 0.02, 14, 20);
         p.textAlign(p.CENTER, p.CENTER);
-        // Draw "Original" text in the padding space above the top image
         drawText("Original", p.width / 2, topArea.y / 2 + textSize / 2, textSize, '#ffffff99');
-        // Draw "Find" text in the padding space between the two images
         const findTextY = topArea.y + topArea.h + padding / 2;
         drawText("Find the differences below 👇", p.width / 2, findTextY, textSize, '#ffffffcc');
 
-
-        // --- 5. Update game logic (targets, timer, UI) ---
         const scaleFactor = bottomImgMetrics.imgWidth / imageB.width;
         translatedTargets = targets.map(target => ({
             x: (target.x * scaleFactor) + bottomImgMetrics.imgX,
@@ -407,17 +390,14 @@ function sketchSpotTheDifference(p) {
 
     p.mousePressed = function() {
         if (p.millis() - lastInputTime < 100) {
-            return; // Ignore rapid-fire inputs
+            return;
         }
         lastInputTime = p.millis();
         if (gameState !== 'playing') return;
         
-        // --- MODIFIED: Check if click is within the bottom image's active area ---
-        // This is an estimation, but prevents clicks on the UI bar or between images.
         const panelHeight = p.constrain(p.height * 0.1, 70, 90);
         const availableGameHeight = p.height - panelHeight;
         if (p.mouseY < availableGameHeight / 2 || p.mouseY > availableGameHeight) return;
-
 
         const isMobile = p.windowWidth < 768;
         const targetRadius = isMobile ? p.width * 0.04 : p.width * 0.025;
@@ -459,19 +439,27 @@ function sketchSpotTheDifference(p) {
         }
     };
 
+    // MODIFIED: This function now includes the salt when dispatching the event
     function endGame(message) {
         if (gameState === 'gameOver') return;
         gameState = 'gameOver';
         if (bgm && bgm.isPlaying()) bgm.stop();
-        if (window.saveScore) window.saveScore('spot_the_difference', score);
+
+        const gameSalt = sessionStorage.getItem('currentGameSalt');
+        const scoreEvent = new CustomEvent('gameComplete', {
+            detail: {
+                gameId: GAME_ID, 
+                score: score, 
+                salt: gameSalt 
+            }
+        });
+        window.dispatchEvent(scoreEvent);
         
+        // This timeout remains, allowing the 'Game Over' screen to show briefly
         setTimeout(() => {
             p.noLoop();
-            if (typeof cleanupPreviousGame === 'function') {
-                cleanupPreviousGame();
-            } else {
-                window.location.reload();
-            }
+            // The cleanup is handled by the main page's event listener now,
+            // but we can leave this here as a fallback.
         }, 3000);
     }
     

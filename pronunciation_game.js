@@ -594,7 +594,15 @@ var sketchPronunciationGame = function(p) {
                 }
                 if (!scoreSaved) {
                     finalScore = currentRound * 10;
-                    window.saveScore(GAME_ID, finalScore);
+                    const gameSalt = sessionStorage.getItem('currentGameSalt');
+                    const scoreEvent = new CustomEvent('gameComplete', {
+                        detail: {
+                            gameId: GAME_ID, 
+                            score: score, 
+                            salt: gameSalt 
+                        }
+                    });
+                    window.dispatchEvent(scoreEvent);
                     scoreSaved = true;
                     console.log(`Saved score: ${finalScore}`);
                 }

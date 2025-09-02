@@ -122,26 +122,27 @@
     <div id="game-canvas-container"></div>
 
     <script>
-        // --- Configuration ---
-        const DEV_MODE = false; // Set to true to skip server checks, false for production.
+    // --- IIFE(즉시 실행 함수 표현식) 시작: 비공개 스코프 생성 ---
+    (function() {
+        // --- 설정 ---
         const BACKEND_API_URL = "https://game.koalarepublic.top";
 
-        // --- UI Elements ---
+        // --- UI 요소 ---
         const menuContainer = document.getElementById('menu-container');
         const canvasContainer = document.getElementById('game-canvas-container');
         const hidingButton = document.getElementById('play-hiding-game');
-        // const listenFindButton = document.getElementById('play-listen-find-game');
         const pronunciationButton = document.getElementById('play-pronunciation-game');
         const spotDifferenceButton = document.getElementById('play-spot-difference-game');
         const statusMessage = document.getElementById('status-message');
         const allGameButtons = document.querySelectorAll('.game-button');
 
-        // --- Game State ---
+        // --- 게임 상태 ---
         let loadedGameScript = null;
         let p5Instance = null;
         let activeToken = null;
+        let currentGameSalt = null; // NEW: To store the unique salt for the current game session
 
-        // --- Helper Functions ---
+        // --- 헬퍼 함수 ---
         function getGameSessions() {
             const sessions = localStorage.getItem('gameSessions');
             return sessions ? JSON.parse(sessions) : {};
@@ -150,37 +151,24 @@
         function saveGameSessions(sessions) {
             localStorage.setItem('gameSessions', JSON.stringify(sessions));
         }
-   
+    
         async function initializePage() {
             allGameButtons.forEach(button => button.disabled = true);
-
-            if (DEV_MODE) {
-                console.warn("DEV MODE is active. Bypassing server validation.");
-                allGameButtons.forEach(button => button.disabled = false);
-                statusMessage.textContent = "DEV MODE: Ready to play.";
-                statusMessage.style.display = 'block';
-                activeToken = 'dev-token'; // Set a dummy token for dev mode
-                return;
-            }
-
             const urlParams = new URLSearchParams(window.location.search);
             const tokenFromUrl = urlParams.get('token');
             const sessions = getGameSessions();
 
             if (tokenFromUrl) {
-                // Scenario 1: User arrives with a token in the URL.
                 activeToken = tokenFromUrl;
-                sessionStorage.setItem('activeToken', activeToken); // Set active token for this tab session
+                sessionStorage.setItem('activeToken', activeToken);
                 window.history.replaceState({}, document.title, window.location.pathname);
 
                 if (sessions[activeToken] && sessions[activeToken].completed) {
-                    // Token exists and is already completed.
                     statusMessage.textContent = "This session has expired. Please get a new link from Discord to play.";
                     statusMessage.style.display = 'block';
                     console.log("Token already used.")
                     return;
                 } else {
-                    // Token is either new or has not been completed yet.
                     if (!sessions[activeToken]) {
                         console.log("New token found. Creating new session.");
                         sessions[activeToken] = { completed: false };
@@ -189,26 +177,22 @@
                     allGameButtons.forEach(button => button.disabled = false);
                 }
             } else {
-                // Scenario 2: User reloads the page without a token in the URL.
                 activeToken = sessionStorage.getItem('activeToken');
                 if (activeToken && sessions[activeToken]) {
                     if (sessions[activeToken].completed) {
                         statusMessage.textContent = "This session has expired. Please get a new link from Discord to play.";
                         statusMessage.style.display = 'block';
                     } else {
-                        // Session is ongoing, allow play.
                         allGameButtons.forEach(button => button.disabled = false);
                     }
                 } else {
-                    // No active session for this tab.
                     statusMessage.textContent = "Please get a new link from Discord to play.";
                     statusMessage.style.display = 'block';
                 }
             }
         }
 
-        window.saveScore = async function(gameId, score) {
-            // Mark the current session as completed immediately in localStorage
+        async function saveScore(gameId, score) {
             if (activeToken) {
                 const sessions = getGameSessions();
                 if (sessions[activeToken]) {
@@ -216,35 +200,7 @@
                     saveGameSessions(sessions);
                 }
             }
-
-            if (DEV_MODE) {
-                console.log(`DEV MODE: Faking score submission for game '${gameId}' with score: ${score}`);
-                
-                // Log the exact API request details that would be sent
-                const apiRequestDetails = {
-                    url: `${BACKEND_API_URL}/api/score`,
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': activeToken
-                    },
-                    body: JSON.stringify({ gameId: gameId, score: score })
-                };
-                
-                console.log('DEV MODE: API Request Details:');
-                console.log('URL:', apiRequestDetails.url);
-                console.log('Method:', apiRequestDetails.method);
-                console.log('Headers:', apiRequestDetails.headers);
-                console.log('Body (JSON string):', apiRequestDetails.body);
-                console.log('Body (parsed object):', JSON.parse(apiRequestDetails.body));
-                
-                alert(`DEV MODE: Score of ${score} would be submitted. Check console for API details.`);
-                allGameButtons.forEach(button => button.disabled = true);
-                statusMessage.textContent = "DEV MODE: Score submitted! Get a new link to play again.";
-                statusMessage.style.display = 'block';
-                return;
-            }
-
+            
             if (!activeToken) {
                 console.warn("Cannot save score: No active token.");
                 alert("Could not save score: Your session is invalid. Please get a new link from Discord.");
@@ -259,13 +215,16 @@
             
             console.log(`Submitting score: ${score} for game: ${gameId}`);
             try {
+                const payload = { gameId, score };
+                const encodedPayload = btoa(JSON.stringify(payload));
+
                 const response = await fetch(`${BACKEND_API_URL}/api/score`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'text/plain', 
                         'Authorization': activeToken
                     },
-                    body: JSON.stringify({ gameId: gameId, score: score }),
+                    body: encodedPayload,
                 });
 
                 const result = await response.json();
@@ -297,13 +256,24 @@
                 loadedGameScript.parentNode.removeChild(loadedGameScript);
                 loadedGameScript = null;
             }
+            // NEW: Clear the salt when cleaning up
+            currentGameSalt = null;
+            sessionStorage.removeItem('currentGameSalt');
+
             canvasContainer.innerHTML = '';
             canvasContainer.style.display = 'none';
             menuContainer.style.display = 'block';
         }
 
+        
         function loadGame(scriptPath, sketchFunctionName) {
             cleanupPreviousGame();
+            
+            // NEW: Generate and store a unique salt for this game session
+            currentGameSalt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            sessionStorage.setItem('currentGameSalt', currentGameSalt);
+            console.log("Generated new game salt for this session.");
+
             menuContainer.style.display = 'none';
             canvasContainer.style.display = 'flex';
 
@@ -331,7 +301,7 @@
             loadedGameScript = gameScript;
         }
 
-        // --- Event Listeners ---
+        // --- 이벤트 리스너 ---
         const gameButtons = document.querySelectorAll('.game-button');
         const hoverFrames = [
             'src/ui/Line0000.png', 'src/ui/Line0001.png', 'src/ui/Line0002.png',
@@ -362,13 +332,11 @@
             };
             
             button.addEventListener('mouseleave', stopHover);
-
             button.addEventListener('mousedown', () => {
                 if (button.disabled) return;
                 stopHover();
                 button.style.backgroundImage = pressedButtonImg;
             });
-
             button.addEventListener('mouseup', () => {
                 if (button.disabled) return;
                 button.style.backgroundImage = '';
@@ -378,8 +346,33 @@
             });
         });
 
+        // MODIFIED: This listener now validates the salt before saving the score
+        window.addEventListener('gameComplete', function(event) {
+            const { gameId, score, salt } = event.detail;
+
+            // NEW: Validate the received salt
+            if (!salt || salt !== currentGameSalt) {
+                console.error("Cheating attempt detected! Invalid game salt received.", { expected: currentGameSalt, received: salt });
+                alert("Score submission failed due to a session mismatch. Please try again.");
+                // Immediately clean up to prevent further actions
+                cleanupPreviousGame(); 
+                return;
+            }
+
+            console.log("Game salt validated successfully.");
+
+            if (gameId && typeof score === 'number') {
+                saveScore(gameId, score);
+            } else {
+                console.error("Invalid 'gameComplete' event received.", event.detail);
+            }
+            
+            // NEW: Clear the salt after it has been used
+            currentGameSalt = null;
+            sessionStorage.removeItem('currentGameSalt');
+        });
+
         hidingButton.addEventListener('click', () => loadGame('find_hiding_ori.js', 'sketchFindHidingGame'));
-        // listenFindButton.addEventListener('click', () => loadGame('listen_and_find.js', 'sketchListenGame'));
         pronunciationButton.addEventListener('click', () => loadGame('pronunciation_game.js', 'sketchPronunciationGame'));
         spotDifferenceButton.addEventListener('click', () => loadGame('spotdifference.js', 'sketchSpotTheDifference'));
         
@@ -389,8 +382,8 @@
             }
         });
 
-        // Initialize the page when the window loads.
         window.onload = initializePage;
+    })(); // --- IIFE 종료 ---
     </script>
 </body>
 </html>
