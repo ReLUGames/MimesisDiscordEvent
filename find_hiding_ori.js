@@ -3,7 +3,7 @@ function sketchFindHidingGame(p) {
     // --- Asset & Visual Configuration ---
     const assetFolder = 'src/images/findhiddenori/';
     const debug_test = false;
-
+    const GAME_ID = 'hiding'
     // --- Game State Variables ---
     let remainingImages = [];
     let currentImage;

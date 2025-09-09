@@ -3,7 +3,7 @@ function sketchSpotTheDifference(p) {
     // --- Asset & Visual Configuration ---
     const assetFolder = 'src/images/spotdifference/';
     const debug_test = false; // Set to true to show all difference locations in red
-
+    
     // --- Game State Variables ---
     let remainingLevels = [];
     let imageA, imageB; // imageA is top (original), imageB is bottom (interactive)
