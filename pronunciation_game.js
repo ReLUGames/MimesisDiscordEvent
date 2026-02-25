@@ -1,7 +1,7 @@
 // pronunciation_game.js - Enhanced Design & Mobile-Optimized Version
 // Features: Modern UI, smooth animations, mobile touch support, visual feedback
 
-var sketchPronunciationGame = function(p) {
+var sketchPronunciationGame = function (p) {
 
     // Helper function to load scripts dynamically
     function loadScript(src) {
@@ -266,9 +266,9 @@ var sketchPronunciationGame = function(p) {
             micErrorText: 'このゲームをプレイするにはマイクが必要です',
             listeningText: '聞き取り中...',
             words: [
-                ["燃料を持て！","ドアをロックしろ！","トラムへ急げ！","後ろだ！そいつがいる！","雨に打たれるな！","電撃殺虫器の音、聞こえるか？"],
-                ["夜になる前に窓を塞げ！","あれは俺の声を完全に真似てる！","ぴったりのスペアパーツを見つけろ！","声がファンみたいに歪んで聞こえる！","トラムの中に全員いるか？","物資リストを確認しろ！"],
-                ["声がヘリウムみたいに不気味に高い！","被害妄想がひどい！深刻すぎる！","あの化け物…どうなってるのか分からない！怖い！","破壊工作の痕跡を探せ！","トラムのクロノメーター、今すぐ同期しろ！","喉のカタカタ音がどんどん大きくなってる！"]
+                ["燃料を持て！", "ドアをロックしろ！", "トラムへ急げ！", "後ろだ！そいつがいる！", "雨に打たれるな！", "電撃殺虫器の音、聞こえるか？"],
+                ["夜になる前に窓を塞げ！", "あれは俺の声を完全に真似てる！", "ぴったりのスペアパーツを見つけろ！", "声がファンみたいに歪んで聞こえる！", "トラムの中に全員いるか？", "物資リストを確認しろ！"],
+                ["声がヘリウムみたいに不気味に高い！", "被害妄想がひどい！深刻すぎる！", "あの化け物…どうなってるのか分からない！怖い！", "破壊工作の痕跡を探せ！", "トラムのクロノメーター、今すぐ同期しろ！", "喉のカタカタ音がどんどん大きくなってる！"]
             ]
         },
         'ko': {
@@ -288,12 +288,12 @@ var sketchPronunciationGame = function(p) {
 
     let languageButtons = [];
 
-    p.preload = function() {
+    p.preload = function () {
         console.log("Pronunciation Game: preload()");
-        
+
         // Detect mobile
         isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
+
         try {
             characterImgIdle = p.loadImage(characterImageUrl,
                 (img) => {
@@ -317,20 +317,20 @@ var sketchPronunciationGame = function(p) {
         }
     };
 
-    p.setup = function() {
+    p.setup = function () {
         console.log("Pronunciation Game: setup()");
 
         // Mobile-optimized canvas sizing
         const aspectRatio = 9 / 16;
         let canvasHeight = p.windowHeight;
         let canvasWidth = canvasHeight * aspectRatio;
-        
+
         // Ensure canvas fits within window width on mobile
         if (canvasWidth > p.windowWidth) {
             canvasWidth = p.windowWidth;
             canvasHeight = canvasWidth / aspectRatio;
         }
-        
+
         p.createCanvas(canvasWidth, canvasHeight);
 
         // Prevent mobile scroll during game
@@ -345,7 +345,7 @@ var sketchPronunciationGame = function(p) {
             displayPreloadError();
             return;
         }
-        
+
         if (gameState === 'SELECT_LANGUAGE') {
             setupLanguageSelection();
         }
@@ -359,14 +359,14 @@ var sketchPronunciationGame = function(p) {
             p.stroke(c);
             p.line(0, i, p.width, i);
         }
-        
+
         p.fill(255, 100, 100);
         p.textAlign(p.CENTER, p.CENTER);
         p.textSize(isMobile ? 18 : 20);
         p.text("Error loading game assets.\nPlease refresh the page.", p.width / 2, p.height / 2);
         p.noLoop();
     }
-    
+
     function setupLanguageSelection() {
         languageButtons = [];
         const languages = Object.keys(languageData);
@@ -413,11 +413,11 @@ var sketchPronunciationGame = function(p) {
                     loadScript("https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"),
                     loadScript("https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js")
                 ]);
-                
+
                 feedbackMessage = "Initializing Japanese dictionary...";
                 kuroshiroInstance = new Kuroshiro.default();
                 await kuroshiroInstance.init(new KuromojiAnalyzer({
-                    dictPath: "./dict/" 
+                    dictPath: "./dict/"
                 }));
             }
             feedbackMessage = "";
@@ -454,25 +454,25 @@ var sketchPronunciationGame = function(p) {
         wallVisible = true;
         isListening = false;
         gameState = 'START_ROUND';
-        
+
         // Start UI fade-in animation
         uiAlpha = 0;
         targetUiAlpha = 255;
     }
 
-    p.windowResized = function() {
+    p.windowResized = function () {
         const aspectRatio = 9 / 16;
         let canvasHeight = p.windowHeight;
         let canvasWidth = canvasHeight * aspectRatio;
-        
+
         if (canvasWidth > p.windowWidth) {
             canvasWidth = p.windowWidth;
             canvasHeight = canvasWidth / aspectRatio;
         }
-        
+
         p.resizeCanvas(canvasWidth, canvasHeight);
         calculateLayout();
-        
+
         if (gameState === 'SELECT_LANGUAGE') {
             setupLanguageSelection();
         }
@@ -481,7 +481,7 @@ var sketchPronunciationGame = function(p) {
     function calculateLayout() {
         // Adjust sizes for mobile
         const mobileFactor = isMobile ? 0.85 : 1;
-        
+
         characterStartX = p.width * 0.15;
         characterY = p.height / 2;
         wallX = p.width / 2;
@@ -493,7 +493,7 @@ var sketchPronunciationGame = function(p) {
         } else {
             characterWidth = characterHeight;
         }
-        
+
         wallHeight = characterHeight * 1.5;
         wallWidth = 60 * mobileFactor;
 
@@ -503,20 +503,20 @@ var sketchPronunciationGame = function(p) {
         playAreaY = p.height / 2 - playAreaH / 2;
     }
 
-    p.draw = function() {
+    p.draw = function () {
         // Animated gradient background
         drawAnimatedBackground();
         p.clear();
         p.background(0, 0, 0, 128);
-        
+
         // Update animations
         pulseAnimation = (pulseAnimation + 0.05) % (2 * p.PI);
         starAnimation = (starAnimation + 0.02) % (2 * p.PI);
         wallGlowAnimation = (wallGlowAnimation + 0.03) % (2 * p.PI);
-        
+
         // Smooth UI transitions
         uiAlpha = p.lerp(uiAlpha, targetUiAlpha, 0.1);
-        
+
         if (!gameState || gameState === 'unloaded' || gameState === 'preload_error') {
             return;
         }
@@ -524,7 +524,7 @@ var sketchPronunciationGame = function(p) {
         if (gameState !== 'SELECT_LANGUAGE') {
             // Draw play area vignette
             drawPlayAreaVignette();
-            
+
             // Draw game elements
             drawWall();
             drawCharacter();
@@ -589,7 +589,7 @@ var sketchPronunciationGame = function(p) {
             case 'GAME_OVER':
                 if (characterWalkGif) characterWalkGif.hide();
                 if (isListening && recognition) {
-                    try { recognition.stop(); } catch (e) {}
+                    try { recognition.stop(); } catch (e) { }
                     isListening = false;
                 }
                 if (!scoreSaved) {
@@ -597,9 +597,9 @@ var sketchPronunciationGame = function(p) {
                     const gameSalt = sessionStorage.getItem('currentGameSalt');
                     const scoreEvent = new CustomEvent('gameComplete', {
                         detail: {
-                            gameId: GAME_ID, 
-                            score: score, 
-                            salt: gameSalt 
+                            gameId: GAME_ID,
+                            score: finalScore,
+                            salt: gameSalt
                         }
                     });
                     window.dispatchEvent(scoreEvent);
@@ -624,7 +624,7 @@ var sketchPronunciationGame = function(p) {
             p.fill(c);
             p.rect(0, i, p.width, 5);
         }
-        
+
         // Add subtle stars
         p.push();
         p.randomSeed(42);
@@ -650,23 +650,23 @@ var sketchPronunciationGame = function(p) {
         p.drawingContext.fillStyle = gradient;
         p.drawingContext.fillRect(0, 0, p.width, p.height);
     }
-    
+
     function drawLanguageSelectionScreen() {
         p.textAlign(p.CENTER, p.CENTER);
-        
+
         // Animated title
         let titleY = p.height * 0.08;
         let titleSize = p.width * (isMobile ? 0.065 : 0.08);
-        
+
         // Title glow effect
         p.fill(255, 255, 255, 30);
         p.textSize(titleSize * 1.1);
         p.text("Select Your Language", p.width / 2, titleY);
-        
+
         p.fill(255);
         p.textSize(titleSize);
         p.text("Select Your Language", p.width / 2, titleY);
-        
+
         // Subtitle
         p.fill(200, 200, 255, 200);
         p.textSize(titleSize * 0.3);
@@ -675,26 +675,26 @@ var sketchPronunciationGame = function(p) {
         // Draw language buttons with hover effects
         languageButtons.forEach((btn, index) => {
             p.push();
-            
+
             // Hover detection
             let isHovering = p.mouseX > btn.x && p.mouseX < btn.x + btn.w &&
-                           p.mouseY > btn.y && p.mouseY < btn.y + btn.h;
-            
+                p.mouseY > btn.y && p.mouseY < btn.y + btn.h;
+
             // Smooth scale animation
             btn.scale = p.lerp(btn.scale, isHovering ? 1.05 : 1, 0.2);
             btn.hover = isHovering;
-            
+
             // Button shadow
             if (isHovering) {
                 p.fill(0, 0, 0, 50);
                 p.noStroke();
                 p.rect(btn.x + 3, btn.y + 3, btn.w, btn.h, 20);
             }
-            
+
             // Button gradient
             let btnColor1 = isHovering ? p.color(80, 150, 250) : p.color(60, 120, 200);
             let btnColor2 = isHovering ? p.color(100, 180, 255) : p.color(80, 140, 220);
-            
+
             // Draw gradient button
             for (let i = 0; i < btn.h; i++) {
                 let inter = p.map(i, 0, btn.h, 0, 1);
@@ -702,49 +702,49 @@ var sketchPronunciationGame = function(p) {
                 p.stroke(c);
                 p.line(btn.x, btn.y + i, btn.x + btn.w, btn.y + i);
             }
-            
+
             // Button border
             p.noFill();
             p.stroke(255, 255, 255, isHovering ? 200 : 100);
             p.strokeWeight(2);
             p.rect(btn.x, btn.y, btn.w, btn.h, 20);
-            
+
             // Flag and text
             p.fill(255);
             p.noStroke();
             p.textSize(btn.h * 0.5);
             p.text(btn.flag, btn.x + btn.w * 0.15, btn.y + btn.h / 2);
-            
+
             p.textSize(btn.h * 0.35);
             p.text(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
-            
+
             // Add pulse effect on hover
             if (isHovering) {
                 let pulse = p.sin(p.frameCount * 0.1) * 5 + 5;
                 p.noFill();
                 p.stroke(255, 255, 255, 50);
                 p.strokeWeight(1);
-                p.rect(btn.x - pulse/2, btn.y - pulse/2, btn.w + pulse, btn.h + pulse, 20);
+                p.rect(btn.x - pulse / 2, btn.y - pulse / 2, btn.w + pulse, btn.h + pulse, 20);
             }
-            
+
             p.pop();
         });
     }
-    
+
     // Touch support for mobile
-    p.touchStarted = function() {
+    p.touchStarted = function () {
         if (isMobile) {
             handleInteraction(p.touches[0].x, p.touches[0].y);
             return false; // Prevent default
         }
     }
-    
-    p.mousePressed = function() {
+
+    p.mousePressed = function () {
         if (!isMobile) {
             handleInteraction(p.mouseX, p.mouseY);
         }
     }
-    
+
     function handleInteraction(x, y) {
         if (gameState === 'SELECT_LANGUAGE') {
             languageButtons.forEach(btn => {
@@ -761,7 +761,7 @@ var sketchPronunciationGame = function(p) {
     // Add this new function to your script
     function shuffleArray(array) {
         // Create a copy to avoid modifying the original data
-        let newArray = array.slice(); 
+        let newArray = array.slice();
         for (let i = newArray.length - 1; i > 0; i--) {
             // Pick a random index from 0 to i
             const j = Math.floor(Math.random() * (i + 1));
@@ -779,34 +779,34 @@ var sketchPronunciationGame = function(p) {
         if (gameState !== 'GAME_OVER') {
             // Round info with better styling
             let infoBoxY = 50;
-            
+
             // Info box background
             p.fill(0, 0, 0, 100);
             p.noStroke();
-            p.rect(p.width/2 - 150, infoBoxY - 20, 300, 35, 15);
-            
+            p.rect(p.width / 2 - 150, infoBoxY - 20, 300, 35, 15);
+
             p.fill(255, 255, 255, uiAlpha);
             p.textSize(isMobile ? 20 : 24);
-            p.text(`Round ${currentRound + 1}/${totalRounds} • Sentence ${currentWordInRound + 1}/${WORDS_PER_ROUND}`, 
-                   p.width / 2, infoBoxY);
+            p.text(`Round ${currentRound + 1}/${totalRounds} • Sentence ${currentWordInRound + 1}/${WORDS_PER_ROUND}`,
+                p.width / 2, infoBoxY);
 
             // Timer with warning animation
-            let timerColor = roundTimer <= 5 ? 
-                p.color(255, 100 + p.sin(pulseAnimation * 3) * 55, 100) : 
+            let timerColor = roundTimer <= 5 ?
+                p.color(255, 100 + p.sin(pulseAnimation * 3) * 55, 100) :
                 p.color(255, 255, 255, uiAlpha);
-            
+
             // Timer background circle
             p.fill(0, 0, 0, 100);
             p.noStroke();
             p.ellipse(p.width - 40, 40, 60);
-            
+
             // Timer progress arc
             p.noFill();
             p.stroke(timerColor);
             p.strokeWeight(3);
-            p.arc(p.width - 40, 40, 60, 60, -p.PI/2, 
-                 -p.PI/2 + (roundTimer/ROUND_DURATION_SECONDS) * 2 * p.PI);
-            
+            p.arc(p.width - 40, 40, 60, 60, -p.PI / 2,
+                -p.PI / 2 + (roundTimer / ROUND_DURATION_SECONDS) * 2 * p.PI);
+
             // Timer text
             p.fill(timerColor);
             p.noStroke();
@@ -819,27 +819,27 @@ var sketchPronunciationGame = function(p) {
             let wordBoxY = p.height * 0.35;
             let boxWidth = p.width * (isMobile ? 0.9 : 0.8);
             let boxHeight = isMobile ? 100 : 120;
-            
+
             // Glowing box effect
             if (gameState === 'LISTENING') {
                 let glowSize = 10 + p.sin(pulseAnimation) * 5;
                 p.fill(100, 150, 255, 30);
                 p.noStroke();
-                p.rect(p.width/2 - boxWidth/2 - glowSize, wordBoxY - boxHeight/2 - glowSize, 
-                      boxWidth + glowSize*2, boxHeight + glowSize*2, 25);
+                p.rect(p.width / 2 - boxWidth / 2 - glowSize, wordBoxY - boxHeight / 2 - glowSize,
+                    boxWidth + glowSize * 2, boxHeight + glowSize * 2, 25);
             }
-            
+
             // Main box
             p.fill(0, 0, 0, 180);
             p.noStroke();
-            p.rect(p.width/2 - boxWidth/2, wordBoxY - boxHeight/2, boxWidth, boxHeight, 20);
-            
+            p.rect(p.width / 2 - boxWidth / 2, wordBoxY - boxHeight / 2, boxWidth, boxHeight, 20);
+
             // Border
             p.noFill();
             p.stroke(wordColor);
             p.strokeWeight(2);
-            p.rect(p.width/2 - boxWidth/2, wordBoxY - boxHeight/2, boxWidth, boxHeight, 20);
-            
+            p.rect(p.width / 2 - boxWidth / 2, wordBoxY - boxHeight / 2, boxWidth, boxHeight, 20);
+
             // Word text
             p.fill(wordColor);
             p.noStroke();
@@ -852,20 +852,20 @@ var sketchPronunciationGame = function(p) {
         if (feedbackMessage) {
             let msgY = p.height * 0.65;
             let msgBoxWidth = p.width * (isMobile ? 0.95 : 0.9);
-            
+
             // Message box with gradient
             p.push();
             let gradient = p.drawingContext.createLinearGradient(
-                p.width/2 - msgBoxWidth/2, msgY - 40,
-                p.width/2 + msgBoxWidth/2, msgY + 40
+                p.width / 2 - msgBoxWidth / 2, msgY - 40,
+                p.width / 2 + msgBoxWidth / 2, msgY + 40
             );
             gradient.addColorStop(0, 'rgba(0,0,0,0.6)');
             gradient.addColorStop(0.5, 'rgba(0,0,0,0.8)');
             gradient.addColorStop(1, 'rgba(0,0,0,0.6)');
             p.drawingContext.fillStyle = gradient;
-            p.drawingContext.fillRect(p.width/2 - msgBoxWidth/2, msgY - 40, msgBoxWidth, 80);
+            p.drawingContext.fillRect(p.width / 2 - msgBoxWidth / 2, msgY - 40, msgBoxWidth, 80);
             p.pop();
-            
+
             // Message text
             p.fill(255, 255, 255, uiAlpha);
             p.textSize(isMobile ? 24 : 28);
@@ -879,131 +879,131 @@ var sketchPronunciationGame = function(p) {
             p.fill(0, 0, 0, 150);
             p.noStroke();
             p.rect(0, 0, p.width, p.height);
-            
+
             // Success box
             let boxY = p.height / 2;
             let boxSize = p.width * 0.8;
-            
+
             // Animated glow
             for (let i = 3; i > 0; i--) {
                 p.fill(100, 255, 100, 20 / i);
                 p.noStroke();
-                p.rect(p.width/2 - boxSize/2 - i*10, boxY - 100 - i*10, 
-                      boxSize + i*20, 200 + i*20, 30);
+                p.rect(p.width / 2 - boxSize / 2 - i * 10, boxY - 100 - i * 10,
+                    boxSize + i * 20, 200 + i * 20, 30);
             }
-            
+
             // Main box
             p.fill(20, 60, 20, 240);
             p.stroke(100, 255, 100);
             p.strokeWeight(3);
-            p.rect(p.width/2 - boxSize/2, boxY - 100, boxSize, 200, 25);
-            
+            p.rect(p.width / 2 - boxSize / 2, boxY - 100, boxSize, 200, 25);
+
             // Success text
             p.fill(100, 255, 100);
             p.noStroke();
             p.textSize(isMobile ? 30 : 40);
             p.text("Verification\nComplete!", p.width / 2, boxY - 20);
-            
+
             // Score
             p.fill(255);
             p.textSize(isMobile ? 18 : 20);
             p.text(`Final Score: ${finalScore}`, p.width / 2, boxY + 40);
-            
+
             p.fill(200);
             p.textSize(isMobile ? 14 : 16);
             p.text("You can now close this window", p.width / 2, boxY + 70);
-            
+
             p.noLoop();
         }
         p.pop();
     }
-    
+
     function displayMicError() {
         p.push();
-        
+
         // Error box with red theme
         let boxWidth = p.width * 0.9;
         let boxY = p.height / 2;
-        
+
         // Red glow
         p.fill(255, 0, 0, 30);
         p.noStroke();
-        p.rect(p.width/2 - boxWidth/2 - 10, boxY - 60, boxWidth + 20, 120, 20);
-        
+        p.rect(p.width / 2 - boxWidth / 2 - 10, boxY - 60, boxWidth + 20, 120, 20);
+
         // Main box
         p.fill(50, 0, 0, 230);
         p.stroke(255, 100, 100);
         p.strokeWeight(2);
-        p.rect(p.width/2 - boxWidth/2, boxY - 50, boxWidth, 100, 15);
-        
+        p.rect(p.width / 2 - boxWidth / 2, boxY - 50, boxWidth, 100, 15);
+
         // Error icon
         p.fill(255, 100, 100);
         p.textSize(30);
         p.text("⚠", p.width / 2, boxY - 20);
-        
+
         // Error message
         p.fill(255);
         p.textSize(isMobile ? 18 : 20);
         p.text(micErrorText, p.width / 2, boxY + 10);
-        
+
         p.pop();
     }
 
     function drawWall() {
         if (wallVisible) {
-            let wallDrawY = p.constrain(p.height / 2, playAreaY + wallHeight / 2, 
-                                       playAreaY + playAreaH - wallHeight / 2);
-            
+            let wallDrawY = p.constrain(p.height / 2, playAreaY + wallHeight / 2,
+                playAreaY + playAreaH - wallHeight / 2);
+
             // Wall glow effect
             if (gameState === 'LISTENING') {
                 let glowIntensity = p.sin(wallGlowAnimation) * 20 + 30;
                 p.fill(150, 100, 200, glowIntensity);
                 p.noStroke();
-                p.rect(wallX - wallWidth/2 - 10, wallDrawY - wallHeight/2 - 10, 
-                      wallWidth + 20, wallHeight + 20, 10);
+                p.rect(wallX - wallWidth / 2 - 10, wallDrawY - wallHeight / 2 - 10,
+                    wallWidth + 20, wallHeight + 20, 10);
             }
-            
+
             // Main wall with gradient
             p.push();
             let gradient = p.drawingContext.createLinearGradient(
-                wallX - wallWidth/2, wallDrawY - wallHeight/2,
-                wallX + wallWidth/2, wallDrawY + wallHeight/2
+                wallX - wallWidth / 2, wallDrawY - wallHeight / 2,
+                wallX + wallWidth / 2, wallDrawY + wallHeight / 2
             );
             gradient.addColorStop(0, 'rgba(40,40,60,0.9)');
             gradient.addColorStop(0.5, 'rgba(20,20,40,1)');
             gradient.addColorStop(1, 'rgba(40,40,60,0.9)');
             p.drawingContext.fillStyle = gradient;
-            p.drawingContext.fillRect(wallX - wallWidth/2, wallDrawY - wallHeight/2, 
-                                     wallWidth, wallHeight);
+            p.drawingContext.fillRect(wallX - wallWidth / 2, wallDrawY - wallHeight / 2,
+                wallWidth, wallHeight);
             p.pop();
-            
+
             // Wall border
             p.noFill();
             p.stroke(100, 100, 150, 200);
             p.strokeWeight(2);
-            p.rect(wallX - wallWidth/2, wallDrawY - wallHeight/2, wallWidth, wallHeight, 5);
+            p.rect(wallX - wallWidth / 2, wallDrawY - wallHeight / 2, wallWidth, wallHeight, 5);
         }
     }
 
     function drawCharacter() {
-        characterY = p.constrain(characterY, playAreaY + characterHeight / 2, 
-                                playAreaY + playAreaH - characterHeight / 2);
-        let currentDisplayWidth = (characterAspectRatio > 0) ? 
+        characterY = p.constrain(characterY, playAreaY + characterHeight / 2,
+            playAreaY + playAreaH - characterHeight / 2);
+        let currentDisplayWidth = (characterAspectRatio > 0) ?
             characterHeight * characterAspectRatio : characterWidth;
-        
+
         // Character shadow
         p.fill(0, 0, 0, 100);
         p.noStroke();
-        p.ellipse(characterX, characterY + characterHeight/2, currentDisplayWidth * 0.8, 10);
-        
+        p.ellipse(characterX, characterY + characterHeight / 2, currentDisplayWidth * 0.8, 10);
+
         // Draw character based on state
         if (characterState === 'idle' || characterState === 'returning') {
             if (characterWalkGif) characterWalkGif.hide();
             if (characterImgIdle) {
                 // Add slight bounce animation when idle
                 let bounce = p.sin(p.frameCount * 0.05) * 2;
-                p.image(characterImgIdle, characterX, characterY + bounce, 
-                       currentDisplayWidth, characterHeight);
+                p.image(characterImgIdle, characterX, characterY + bounce,
+                    currentDisplayWidth, characterHeight);
             }
         } else if (characterState === 'walking' || characterState === 'walking_correct') {
             if (characterWalkGif) {
@@ -1019,8 +1019,8 @@ var sketchPronunciationGame = function(p) {
                     rect.top + window.scrollY + characterY - (characterHeight / 2)
                 );
             } else if (characterImgIdle) {
-                p.image(characterImgIdle, characterX, characterY, 
-                       currentDisplayWidth, characterHeight);
+                p.image(characterImgIdle, characterX, characterY,
+                    currentDisplayWidth, characterHeight);
             }
         }
         characterWidth = currentDisplayWidth;
@@ -1049,12 +1049,12 @@ var sketchPronunciationGame = function(p) {
             particle.y += particle.vy;
             particle.vy += 0.3; // gravity
             particle.life -= 5;
-            
-            p.fill(p.red(particle.color), p.green(particle.color), 
-                  p.blue(particle.color), particle.life);
+
+            p.fill(p.red(particle.color), p.green(particle.color),
+                p.blue(particle.color), particle.life);
             p.noStroke();
             p.ellipse(particle.x, particle.y, particle.size);
-            
+
             if (particle.life <= 0) {
                 successParticles.splice(i, 1);
             }
@@ -1064,12 +1064,12 @@ var sketchPronunciationGame = function(p) {
     function displayApiNotSupported() {
         p.push();
         let boxY = p.height * 0.7;
-        
+
         p.fill(0, 0, 0, 200);
         p.stroke(255, 100, 100);
         p.strokeWeight(2);
-        p.rect(p.width/2 - 200, boxY - 30, 400, 60, 15);
-        
+        p.rect(p.width / 2 - 200, boxY - 30, 400, 60, 15);
+
         p.fill(255, 100, 100);
         p.noStroke();
         p.textSize(isMobile ? 16 : 18);
@@ -1111,7 +1111,7 @@ var sketchPronunciationGame = function(p) {
     function updateCharacterPosition() {
         let arrived = false;
         let distance = characterTargetX - characterX;
-        
+
         if (p.abs(distance) < charSpeed) {
             characterX = characterTargetX;
             arrived = true;
@@ -1169,7 +1169,7 @@ var sketchPronunciationGame = function(p) {
 
         // Language-specific processing
         if (chosenLang === 'cmn-Hans-CN') {
-            if (typeof pinyin === 'undefined' || 
+            if (typeof pinyin === 'undefined' ||
                 (typeof pinyin !== 'function' && typeof pinyin.default !== 'function')) {
                 console.error("Pinyin library not loaded");
                 feedbackMessage = "Error: Pinyin library issue";
@@ -1179,18 +1179,18 @@ var sketchPronunciationGame = function(p) {
             const pinyinFunc = typeof pinyin === 'function' ? pinyin : pinyin.default;
             spokenString = pinyinFunc(processedSpoken, { style: pinyin.STYLE_NORMAL }).flat().join(' ');
             targetString = pinyinFunc(processedTarget, { style: pinyin.STYLE_NORMAL }).flat().join(' ');
-            
+
         } else if (chosenLang === 'ja-JP') {
             if (!kuroshiroInstance) {
                 console.error("Kuroshiro not initialized");
                 feedbackMessage = "Error: Japanese library not ready";
                 return;
             }
-            spokenString = await kuroshiroInstance.convert(processedSpoken, 
+            spokenString = await kuroshiroInstance.convert(processedSpoken,
                 { to: "romaji", romajiSystem: "hepburn" });
-            targetString = await kuroshiroInstance.convert(processedTarget, 
+            targetString = await kuroshiroInstance.convert(processedTarget,
                 { to: "romaji", romajiSystem: "hepburn" });
-            
+
         } else {
             spokenString = processedSpoken.toLowerCase().replace(/\s/g, '');
             targetString = processedTarget.toLowerCase().replace(/\s/g, '');
@@ -1200,12 +1200,12 @@ var sketchPronunciationGame = function(p) {
         const distance = levenshteinDistance(spokenString, targetString);
         const maxLength = Math.max(spokenString.length, targetString.length);
         const similarity = maxLength === 0 ? 1 : (maxLength - distance) / maxLength;
-        
+
         console.log(`Similarity: ${similarity.toFixed(2)}`);
         let correct = similarity >= SIMILARITY_THRESHOLD;
 
         isListening = false;
-        
+
         if (correct) {
             feedbackMessage = "Success! 🎉";
             wordColor = p.color(100, 255, 100);
@@ -1230,7 +1230,7 @@ var sketchPronunciationGame = function(p) {
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = chosenLang;
-            
+
             recognition.onstart = () => {
                 isListening = true;
                 feedbackMessage = listeningText + " 🎤";
@@ -1245,7 +1245,7 @@ var sketchPronunciationGame = function(p) {
 
             recognition.onerror = (event) => {
                 isListening = false;
-                
+
                 if (event.error === 'audio-capture') {
                     console.error("No microphone found");
                     gameState = 'MIC_ERROR';
@@ -1270,7 +1270,7 @@ var sketchPronunciationGame = function(p) {
                     gameState = 'SHOW_RESULT';
                 }
             };
-            
+
             recognition.onend = () => {
                 isListening = false;
             };
@@ -1281,7 +1281,7 @@ var sketchPronunciationGame = function(p) {
 
     function startListening() {
         if (!speechApiSupported || gameState === 'MIC_ERROR') return;
-        
+
         if (recognition && !isListening && gameState === 'LISTENING') {
             try {
                 recognition.start();
@@ -1292,22 +1292,22 @@ var sketchPronunciationGame = function(p) {
         }
     }
 
-    p.cleanup = function() {
+    p.cleanup = function () {
         console.log("Cleaning up Pronunciation Game resources...");
-        
+
         // Stop recognition
         if (recognition && isListening) {
-            try { recognition.stop(); } catch (e) {}
+            try { recognition.stop(); } catch (e) { }
         }
         recognition = null;
         isListening = false;
-        
+
         // Remove GIF element
         if (characterWalkGif) {
-            try { characterWalkGif.remove(); } catch (e) {}
+            try { characterWalkGif.remove(); } catch (e) { }
         }
         characterWalkGif = null;
-        
+
         // Reset mobile styles
         if (isMobile) {
             document.body.style.overflow = '';
@@ -1315,10 +1315,10 @@ var sketchPronunciationGame = function(p) {
             document.body.style.width = '';
             document.body.style.height = '';
         }
-        
+
         // Clear particles
         successParticles = [];
-        
+
         // Reset state
         gameState = 'unloaded';
         scoreSaved = false;
