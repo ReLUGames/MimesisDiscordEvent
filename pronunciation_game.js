@@ -884,27 +884,34 @@ var sketchPronunciationGame = function (p) {
             let boxY = p.height / 2;
             let boxSize = p.width * 0.8;
 
+            let isSuccess = currentRound >= totalRounds;
+            let themeColor = isSuccess ? p.color(100, 255, 100) : p.color(255, 100, 100);
+            let boxFillColor = isSuccess ? p.color(20, 60, 20, 240) : p.color(60, 20, 20, 240);
+
             // Animated glow
             for (let i = 3; i > 0; i--) {
-                p.fill(100, 255, 100, 20 / i);
+                p.fill(p.red(themeColor), p.green(themeColor), p.blue(themeColor), 20 / i);
                 p.noStroke();
                 p.rect(p.width / 2 - boxSize / 2 - i * 10, boxY - 100 - i * 10,
                     boxSize + i * 20, 200 + i * 20, 30);
             }
 
             // Main box
-            p.fill(20, 60, 20, 240);
-            p.stroke(100, 255, 100);
+            p.fill(boxFillColor);
+            p.stroke(themeColor);
             p.strokeWeight(3);
             p.rect(p.width / 2 - boxSize / 2, boxY - 100, boxSize, 200, 25);
 
             // Success text
-            p.fill(100, 255, 100);
+            let titleText = isSuccess ? "Verification\nComplete!" : "Time's Up!\nGame Over";
+
+            p.fill(themeColor);
             p.noStroke();
             p.textSize(isMobile ? 30 : 40);
-            p.text("Verification\nComplete!", p.width / 2, boxY - 20);
+            p.text(titleText, p.width / 2, boxY - 20);
 
             // Score
+            finalScore = currentRound * 10;
             p.fill(255);
             p.textSize(isMobile ? 18 : 20);
             p.text(`Final Score: ${finalScore}`, p.width / 2, boxY + 40);
@@ -1252,8 +1259,8 @@ var sketchPronunciationGame = function (p) {
                     return;
                 }
 
-                if (event.error === 'no-speech') {
-                    feedbackMessage = "Didn't hear that. Try again... 🔊";
+                if (event.error === 'no-speech' || event.error === 'network') {
+                    feedbackMessage = event.error === 'network' ? "Network error, retrying... 🔄" : "Didn't hear that. Try again... 🔊";
                     wordColor = p.color(255, 200, 100);
                     gameState = 'SHOW_RESULT';
                     setTimeout(() => {
