@@ -281,15 +281,16 @@
     </div>
 
     <div id="win-screen" role="dialog" aria-labelledby="win-title">
-        <span class="win-badge">✅ Completed</span>
+        <span id="win-badge" class="win-badge">✅ Completed</span>
         <h2 id="win-title">You won!</h2>
         <p id="win-subtitle">Here is your redeem code. It has been copied to your clipboard automatically.</p>
-        <div class="code-block"><span id="win-code"></span></div>
+        <div id="code-block-wrap" class="code-block"><span id="win-code"></span></div>
         <button id="copy-button" type="button">📋 Copy code</button>
         <span id="copy-feedback"></span>
-        <div class="win-steps">
+        <div id="win-steps" class="win-steps">
             <strong>Next:</strong> head back to the event post in Discord, click <strong>🎁 Redeem Code</strong>, and paste this code to get your role.
         </div>
+        <div id="win-expiry" style="margin-top:10px; color:var(--danger); font-size:0.88em;"></div>
     </div>
 
     <div id="ep-container" class="hidden mt-4 p-3 bg-black bg-opacity-50 rounded-md text-left text-sm text-green-400 font-mono break-words whitespace-pre-wrap">
@@ -310,34 +311,85 @@
         const moreGamesButton    = document.getElementById('more-games-button');
         const winScreen          = document.getElementById('win-screen');
         const winCode            = document.getElementById('win-code');
+        const winBadge           = document.getElementById('win-badge');
+        const winTitle           = document.getElementById('win-title');
+        const winSubtitle        = document.getElementById('win-subtitle');
+        const winSteps           = document.getElementById('win-steps');
+        const winExpiry          = document.getElementById('win-expiry');
+        const codeBlockWrap      = document.getElementById('code-block-wrap');
         const copyButton         = document.getElementById('copy-button');
         const copyFeedback       = document.getElementById('copy-feedback');
 
         let loadedGameScript = null;
         let p5Instance = null;
-        let activeCode = null;
+        let codesBundle = null;      // { hiding: {1,2,3}, human: {1,2,3}, spot_the_difference: {1,2,3} }
+        let expiresMinutes = null;
         let currentGameSalt = null;
+        let currentCode = null;      // code displayed on win screen (so copy button copies the right one)
+
+        const GAME_ID_ALIASES = {
+            'hiding': 'hiding',
+            'human': 'human',
+            'spot_the_difference': 'spot_the_difference',
+            'spot': 'spot_the_difference',
+        };
+
+        const TIER_LABEL = {1: {name: 'Bronze', emoji: '🥉'}, 2: {name: 'Silver', emoji: '🥈'}, 3: {name: 'Gold', emoji: '🥇'}};
+
+        function scoreToTier(score) {
+            if (score >= 30) return 3;
+            if (score >= 20) return 2;
+            if (score >= 10) return 1;
+            return 0;
+        }
+
+        function decodeBundle(raw) {
+            try {
+                const pad = '='.repeat((4 - raw.length % 4) % 4);
+                const b64 = raw.replace(/-/g, '+').replace(/_/g, '/') + pad;
+                return JSON.parse(atob(b64));
+            } catch (e) {
+                console.error("Failed to decode codes bundle", e);
+                return null;
+            }
+        }
 
         function initializePage() {
             allGameButtons.forEach(button => button.disabled = true);
 
             const urlParams = new URLSearchParams(window.location.search);
-            const codeFromUrl = urlParams.get('code');
+            const codesFromUrl = urlParams.get('codes');
+            const expFromUrl = urlParams.get('exp');
 
-            if (codeFromUrl) {
-                activeCode = codeFromUrl;
-                sessionStorage.setItem('activeCode', activeCode);
+            if (codesFromUrl) {
+                codesBundle = decodeBundle(codesFromUrl);
+                if (codesBundle) sessionStorage.setItem('codesBundle', JSON.stringify(codesBundle));
             } else {
-                activeCode = sessionStorage.getItem('activeCode');
+                const cached = sessionStorage.getItem('codesBundle');
+                if (cached) {
+                    try { codesBundle = JSON.parse(cached); } catch (e) { codesBundle = null; }
+                }
             }
 
-            if (!activeCode) {
+            if (expFromUrl) {
+                expiresMinutes = parseInt(expFromUrl, 10) || null;
+                if (expiresMinutes) sessionStorage.setItem('expiresMinutes', String(expiresMinutes));
+            } else {
+                const cachedExp = sessionStorage.getItem('expiresMinutes');
+                if (cachedExp) expiresMinutes = parseInt(cachedExp, 10) || null;
+            }
+
+            if (!codesBundle) {
                 statusMessage.textContent = "Please open this page from the Discord event post — click 🎮 Play the Game to get your personal link.";
                 statusMessage.style.display = 'block';
                 return;
             }
 
-            if (!/^\d{15,22}\.\d{10,}\.[A-Za-z0-9_\-]+$/.test(activeCode)) {
+            const games = Object.keys(codesBundle);
+            const validShape = games.length >= 1 && games.every(g =>
+                codesBundle[g] && ['1','2','3'].every(t => typeof codesBundle[g][t] === 'string')
+            );
+            if (!validShape) {
                 statusMessage.textContent = "This link looks invalid. Please click 🎮 Play the Game again in Discord.";
                 statusMessage.style.display = 'block';
                 return;
@@ -346,12 +398,61 @@
             allGameButtons.forEach(button => button.disabled = false);
         }
 
-        function showWinScreen(code) {
+        function showWinScreen(gameId, score) {
             menuContainer.style.display = 'none';
             canvasContainer.style.display = 'none';
-            winCode.textContent = code;
-            winScreen.style.display = 'block';
 
+            const tier = scoreToTier(score);
+            const canonicalGame = GAME_ID_ALIASES[gameId] || gameId;
+
+            if (tier === 0) {
+                // Below bronze threshold — no code to give
+                winBadge.textContent = '✖ Try again';
+                winBadge.style.background = 'rgba(243, 139, 168, 0.14)';
+                winBadge.style.borderColor = 'rgba(243, 139, 168, 0.35)';
+                winBadge.style.color = 'var(--danger)';
+                winTitle.textContent = `Score: ${score}`;
+                winSubtitle.textContent = `You need at least 10 points to earn a Bronze role. Head back and click Play again to try once more.`;
+                codeBlockWrap.style.display = 'none';
+                copyButton.style.display = 'none';
+                copyFeedback.style.display = 'none';
+                winSteps.innerHTML = '<strong>Tip:</strong> Bronze 🥉 = score ≥10, Silver 🥈 = ≥20, Gold 🥇 = ≥30.';
+                winExpiry.textContent = '';
+                winScreen.style.display = 'block';
+                currentCode = null;
+                return;
+            }
+
+            const code = codesBundle[canonicalGame] && codesBundle[canonicalGame][String(tier)];
+            if (!code) {
+                statusMessage.textContent = `Could not find a code for game "${canonicalGame}". Please reload from Discord.`;
+                statusMessage.style.display = 'block';
+                winScreen.style.display = 'none';
+                menuContainer.style.display = 'block';
+                return;
+            }
+
+            currentCode = code;
+            const tierInfo = TIER_LABEL[tier];
+            winBadge.textContent = `${tierInfo.emoji} ${tierInfo.name} tier`;
+            winBadge.style.background = '';
+            winBadge.style.borderColor = '';
+            winBadge.style.color = '';
+            winTitle.textContent = `You won! (score: ${score})`;
+            winSubtitle.textContent = `Here is your redeem code. It has been copied to your clipboard automatically.`;
+            codeBlockWrap.style.display = '';
+            copyButton.style.display = '';
+            copyFeedback.style.display = '';
+            winSteps.innerHTML = '<strong>Next:</strong> head back to the event post in Discord, click <strong>🎁 Redeem Code</strong>, and paste this code to get your role.';
+            winCode.textContent = code;
+
+            if (expiresMinutes) {
+                winExpiry.textContent = `⏱ This code is valid for ${expiresMinutes} minutes from when you clicked Play. Redeem soon.`;
+            } else {
+                winExpiry.textContent = '';
+            }
+
+            winScreen.style.display = 'block';
             copyToClipboard(code, /*silent=*/true);
         }
 
@@ -396,7 +497,9 @@
             return ok;
         }
 
-        copyButton.addEventListener('click', () => copyToClipboard(activeCode, false));
+        copyButton.addEventListener('click', () => {
+            if (currentCode) copyToClipboard(currentCode, false);
+        });
 
         function cleanupPreviousGame() {
             if (p5Instance) {
@@ -506,8 +609,8 @@
                 return;
             }
 
-            if (!activeCode) {
-                alert("No redeem code is attached to this session. Please reload from Discord.");
+            if (!codesBundle) {
+                alert("No redeem codes are attached to this session. Please reload from Discord.");
                 cleanupPreviousGame();
                 return;
             }
@@ -522,7 +625,7 @@
             currentGameSalt = null;
             sessionStorage.removeItem('currentGameSalt');
 
-            showWinScreen(activeCode);
+            showWinScreen(gameId, score);
         });
 
         function toggleEpCode() {
