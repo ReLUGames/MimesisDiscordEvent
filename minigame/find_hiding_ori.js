@@ -86,7 +86,7 @@ function sketchFindHidingGame(p) {
         for (let tier = 0; tier < 3; tier++) { // Tiers 0 (easy), 1 (medium), 2 (hard)
             for (let i = 1; i <= maxImagesToProbe; i++) {
                 const numberString = i.toString().padStart(2, '0');
-                const filename = `${tier}${numberString}.png`;
+                const filename = `${tier}${numberString}.webp`;
                 const path = assetFolder + filename;
                 probePromises.push(probeImage(path));
             }
@@ -98,7 +98,7 @@ function sketchFindHidingGame(p) {
         // Filter out only the images that successfully loaded.
         const existingImageFiles = results
             .filter(result => result.status === 'fulfilled')
-            .map(result => result.value.split('/').pop()); // Get just the filename (e.g., "001.png")
+            .map(result => result.value.split('/').pop()); // Get just the filename (e.g., "001.webp")
 
         // Group the existing files by difficulty tier.
         let easyTier = existingImageFiles.filter(file => file.startsWith('0'));
@@ -114,7 +114,7 @@ function sketchFindHidingGame(p) {
         remainingImages = [...easyTier, ...mediumTier, ...hardTier];
         
         if (remainingImages.length === 0) {
-            console.error("No image files were found in the asset folder. Make sure they are named correctly (e.g., 001.png).");
+            console.error("No image files were found in the asset folder. Make sure they are named correctly (e.g., 001.webp).");
             gameState = 'error';
             return;
         }

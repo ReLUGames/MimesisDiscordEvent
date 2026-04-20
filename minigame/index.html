@@ -35,7 +35,7 @@
         }
 
         body {
-            background-image: url('src/ui/BG.png');
+            background-image: url('src/ui/BG.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -95,7 +95,7 @@
         }
 
         .game-button {
-            background-image: url('src/ui/Button_02.png');
+            background-image: url('src/ui/Button_02.webp');
             background-size: 100% 100%;
         }
 
@@ -557,10 +557,10 @@
 
         const gameButtons = document.querySelectorAll('.game-button');
         const hoverFrames = [
-            'src/ui/Line0000.png', 'src/ui/Line0001.png', 'src/ui/Line0002.png',
-            'src/ui/Line0003.png', 'src/ui/Line0004.png', 'src/ui/Line0005.png'
+            'src/ui/Line0000.webp', 'src/ui/Line0001.webp', 'src/ui/Line0002.webp',
+            'src/ui/Line0003.webp', 'src/ui/Line0004.webp', 'src/ui/Line0005.webp'
         ];
-        const pressedButtonImg = 'url("src/ui/Button_01.png")';
+        const pressedButtonImg = 'url("src/ui/Button_01.webp")';
 
         gameButtons.forEach(button => {
             let hoverInterval = null;
@@ -569,7 +569,7 @@
                 if (button.disabled || button.matches(':active')) return;
                 let frameIndex = 0;
                 hoverInterval = setInterval(() => {
-                    button.style.backgroundImage = `url('${hoverFrames[frameIndex]}'), url('src/ui/Button_02.png')`;
+                    button.style.backgroundImage = `url('${hoverFrames[frameIndex]}'), url('src/ui/Button_02.webp')`;
                     button.style.backgroundSize = '150%, 100%';
                     button.style.backgroundPosition = 'center, center';
                     frameIndex = (frameIndex + 1) % hoverFrames.length;

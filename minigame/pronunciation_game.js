@@ -123,8 +123,8 @@ var sketchPronunciationGame = function (p) {
     let characterWidth;
     let characterHeight = desiredCharacterHeight;
     let characterAspectRatio = 1;
-    const characterImageUrl = 'src/images/Ori_pixel.png';
-    const characterWalkGifUrl = 'src/images/ori_walk.gif';
+    const characterImageUrl = 'src/images/Ori_pixel.webp';
+    const characterWalkGifUrl = 'src/images/ori_walk.webp';
 
     let fallbackBgImg;
 
@@ -306,7 +306,7 @@ var sketchPronunciationGame = function (p) {
                 }
             );
 
-            fallbackBgImg = p.loadImage("src/ui/BG.png",
+            fallbackBgImg = p.loadImage("src/ui/BG.webp",
                 () => console.log("Background loaded"),
                 (err) => console.error("Failed to load background:", err)
             );
