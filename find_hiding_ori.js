@@ -419,10 +419,8 @@ function sketchFindHidingGame(p) {
         
         setTimeout(() => {
             p.noLoop();
-            if (typeof cleanupPreviousGame === 'function') {
-                cleanupPreviousGame();
-            } else {
-                window.location.reload(); // Fallback
+            if (typeof window.cleanupPreviousGame === 'function') {
+                window.cleanupPreviousGame();
             }
         }, 3000);
     }

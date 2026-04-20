@@ -3,19 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Selection</title>
+    <title>MIMESIS — Event Challenge</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/p5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/addons/p5.sound.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        :root {
+            --bg-overlay: rgba(16, 18, 34, 0.55);
+            --card-bg: rgba(18, 20, 40, 0.78);
+            --card-border: rgba(138, 180, 255, 0.18);
+            --text-primary: #eef1ff;
+            --text-muted: #a9b1d6;
+            --accent: #74c7ec;
+            --accent-strong: #89b4fa;
+            --success: #a6e3a1;
+            --danger: #f38ba8;
+            --code-bg: #0b0d1f;
+            --code-border: rgba(137, 180, 250, 0.35);
+        }
+
+        * { box-sizing: border-box; }
+
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: white;
-            overflow: hidden; /* Prevent scrollbars */
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
+
         body {
             background-image: url('src/ui/BG.png');
             background-size: cover;
@@ -26,93 +44,227 @@
             justify-content: center;
             align-items: center;
         }
+
         .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(26, 26, 46, 0.3);
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(16, 18, 34, 0.35) 0%, rgba(16, 18, 34, 0.75) 100%);
             z-index: 1;
+            pointer-events: none;
         }
-        #menu-container, #game-canvas-container {
+
+        #menu-container, #game-canvas-container, #win-screen {
             position: relative;
             z-index: 2;
         }
+
         #menu-container {
             text-align: center;
-            padding: 40px;
-            background-color: rgba(0, 0, 0, 0.4);
-            border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-            width: 90%;
-            max-width: 500px;
+            padding: 40px 32px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            width: min(92vw, 520px);
+            backdrop-filter: blur(12px);
         }
+
         h1 {
-            color: #e0e0ff;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+            color: var(--text-primary);
+            margin: 0 0 28px 0;
+            font-size: clamp(1.6em, 4vw, 2.4em);
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
+
         .game-button, .control-button {
             display: block;
             width: 100%;
-            max-width: 300px;
-            padding: 15px;
-            margin: 15px auto;
-            font-size: 1.1em;
+            max-width: 320px;
+            padding: 14px 18px;
+            margin: 12px auto;
+            font-size: 1.05em;
+            font-weight: 600;
             color: #fff;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
             background-color: transparent;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: transform 0.15s ease, opacity 0.2s ease;
         }
+
         .game-button {
             background-image: url('src/ui/Button_02.png');
             background-size: 100% 100%;
         }
-        .game-button:hover, .control-button:hover:not(:disabled) {
+
+        .game-button:hover:not(:disabled),
+        .control-button:hover:not(:disabled) {
             transform: translateY(-2px);
         }
-        .game-button:active, .control-button:active:not(:disabled) { 
-            transform: translateY(1px); 
+
+        .game-button:active:not(:disabled),
+        .control-button:active:not(:disabled) {
+            transform: translateY(1px);
         }
+
         .game-button:disabled, .control-button:disabled {
-            background-color: #3a3a6a;
-            opacity: 0.6;
+            opacity: 0.45;
             cursor: not-allowed;
         }
-        #more-games-button {
-            background: none;
-        }
+
+        #more-games-button { background: none; }
+
         #game-canvas-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             display: none;
             justify-content: center;
             align-items: center;
         }
+
         canvas {
             display: block;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+            border-radius: 8px;
         }
+
         #status-message {
             margin-top: 20px;
-            color: #ffb3b3;
-            font-weight: bold;
+            color: var(--danger);
+            font-weight: 500;
+            font-size: 0.95em;
+            line-height: 1.5;
         }
+
+        /* ============================================================
+           Win Screen
+           ============================================================ */
+
+        #win-screen {
+            display: none;
+            width: min(92vw, 560px);
+            padding: 36px 32px 32px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(14px);
+            animation: winReveal 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+        }
+
+        @keyframes winReveal {
+            0%   { opacity: 0; transform: translateY(14px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0)    scale(1);    }
+        }
+
+        .win-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            background: rgba(166, 227, 161, 0.14);
+            border: 1px solid rgba(166, 227, 161, 0.35);
+            color: var(--success);
+            border-radius: 999px;
+            font-size: 0.8em;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        #win-title {
+            margin: 14px 0 6px 0;
+            font-size: clamp(1.6em, 3.5vw, 2.1em);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        #win-subtitle {
+            margin: 0 0 24px 0;
+            color: var(--text-muted);
+            font-size: 0.98em;
+            line-height: 1.55;
+        }
+
+        .code-block {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 18px;
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Consolas, monospace;
+            font-size: 0.95em;
+            color: var(--accent);
+            word-break: break-all;
+            user-select: all;
+            cursor: text;
+        }
+
+        #win-code {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #copy-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 13px 18px;
+            margin-top: 14px;
+            font-size: 1em;
+            font-weight: 600;
+            color: #0b0d1f;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+
+        #copy-button:hover { background: #9bd8f0; }
+        #copy-button:active { transform: translateY(1px); }
+        #copy-button.copied { background: var(--success); }
+
+        #copy-feedback {
+            display: inline-block;
+            margin-top: 10px;
+            min-height: 1.2em;
+            font-size: 0.88em;
+            color: var(--success);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        #copy-feedback.show { opacity: 1; }
+
+        .win-steps {
+            margin: 22px 0 0 0;
+            padding: 16px 18px;
+            background: rgba(137, 180, 250, 0.06);
+            border-left: 3px solid var(--accent-strong);
+            border-radius: 0 10px 10px 0;
+            font-size: 0.92em;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .win-steps strong { color: var(--text-primary); }
+
         #ep-container {
             position: fixed;
-            bottom: 5vh; /* Position it 5% from the bottom of the viewport */
+            bottom: 5vh;
             left: 50%;
-            transform: translateX(-50%); /* Horizontally center it */
-            width: 90vw; /* Set width to 90% of the viewport width */
-            max-width: 900px; /* Prevent it from getting too wide on large screens */
-            z-index: 10; /* Ensure it appears above other elements */
+            transform: translateX(-50%);
+            width: 90vw;
+            max-width: 900px;
+            z-index: 10;
         }
     </style>
 </head>
@@ -128,6 +280,18 @@
         <p id="status-message" style="display: none;"></p>
     </div>
 
+    <div id="win-screen" role="dialog" aria-labelledby="win-title">
+        <span class="win-badge">✅ Completed</span>
+        <h2 id="win-title">You won!</h2>
+        <p id="win-subtitle">Here is your redeem code. It has been copied to your clipboard automatically.</p>
+        <div class="code-block"><span id="win-code"></span></div>
+        <button id="copy-button" type="button">📋 Copy code</button>
+        <span id="copy-feedback"></span>
+        <div class="win-steps">
+            <strong>Next:</strong> head back to the event post in Discord, click <strong>🎁 Redeem Code</strong>, and paste this code to get your role.
+        </div>
+    </div>
+
     <div id="ep-container" class="hidden mt-4 p-3 bg-black bg-opacity-50 rounded-md text-left text-sm text-green-400 font-mono break-words whitespace-pre-wrap">
         <pre class="w-full"><code class="w-full"></code></pre>
     </div>
@@ -135,126 +299,104 @@
     <div id="game-canvas-container"></div>
 
     <script>
-    // --- IIFE(즉시 실행 함수 표현식) 시작: 비공개 스코프 생성 ---
     (function() {
-        const BACKEND_API_URL = "https://discordbot.relu.games";
-
-        const menuContainer = document.getElementById('menu-container');
-        const canvasContainer = document.getElementById('game-canvas-container');
-        const hidingButton = document.getElementById('play-hiding-game');
+        const menuContainer      = document.getElementById('menu-container');
+        const canvasContainer    = document.getElementById('game-canvas-container');
+        const hidingButton       = document.getElementById('play-hiding-game');
         const pronunciationButton = document.getElementById('play-pronunciation-game');
         const spotDifferenceButton = document.getElementById('play-spot-difference-game');
-        const statusMessage = document.getElementById('status-message');
-        const allGameButtons = document.querySelectorAll('.game-button');
-        const moreGamesButton = document.getElementById('more-games-button');
-
+        const statusMessage      = document.getElementById('status-message');
+        const allGameButtons     = document.querySelectorAll('.game-button');
+        const moreGamesButton    = document.getElementById('more-games-button');
+        const winScreen          = document.getElementById('win-screen');
+        const winCode            = document.getElementById('win-code');
+        const copyButton         = document.getElementById('copy-button');
+        const copyFeedback       = document.getElementById('copy-feedback');
 
         let loadedGameScript = null;
         let p5Instance = null;
-        let activeToken = null;
-        let currentGameSalt = null; // NEW: To store the unique salt for the current game session
+        let activeCode = null;
+        let currentGameSalt = null;
 
-        function getGameSessions() {
-            const sessions = localStorage.getItem('gameSessions');
-            return sessions ? JSON.parse(sessions) : {};
-        }
-
-        function saveGameSessions(sessions) {
-            localStorage.setItem('gameSessions', JSON.stringify(sessions));
-        }
-    
-        async function initializePage() {
+        function initializePage() {
             allGameButtons.forEach(button => button.disabled = true);
+
             const urlParams = new URLSearchParams(window.location.search);
-            const tokenFromUrl = urlParams.get('token');
-            const sessions = getGameSessions();
+            const codeFromUrl = urlParams.get('code');
 
-            if (tokenFromUrl) {
-                activeToken = tokenFromUrl;
-                sessionStorage.setItem('activeToken', activeToken);
-                window.history.replaceState({}, document.title, window.location.pathname);
-
-                if (sessions[activeToken] && sessions[activeToken].completed) {
-                    statusMessage.textContent = "This session has expired. Please get a new link from Discord to play.";
-                    statusMessage.style.display = 'block';
-                    console.log("Token already used.")
-                    return;
-                } else {
-                    if (!sessions[activeToken]) {
-                        console.log("New token found. Creating new session.");
-                        sessions[activeToken] = { completed: false };
-                        saveGameSessions(sessions);
-                    }
-                    allGameButtons.forEach(button => button.disabled = false);
-                }
+            if (codeFromUrl) {
+                activeCode = codeFromUrl;
+                sessionStorage.setItem('activeCode', activeCode);
             } else {
-                activeToken = sessionStorage.getItem('activeToken');
-                if (activeToken && sessions[activeToken]) {
-                    if (sessions[activeToken].completed) {
-                        statusMessage.textContent = "This session has expired. Please get a new link from Discord to play.";
-                        statusMessage.style.display = 'block';
-                    } else {
-                        allGameButtons.forEach(button => button.disabled = false);
-                    }
-                } else {
-                    statusMessage.textContent = "Please get a new link from Discord to play.";
-                    statusMessage.style.display = 'block';
-                }
-            }
-        }
-
-        async function saveScore(gameId, score) {
-            if (activeToken) {
-                const sessions = getGameSessions();
-                if (sessions[activeToken]) {
-                    sessions[activeToken].completed = true;
-                    saveGameSessions(sessions);
-                }
-            }
-            
-            if (!activeToken) {
-                console.warn("Cannot save score: No active token.");
-                alert("Could not save score: Your session is invalid. Please get a new link from Discord.");
-                return;
+                activeCode = sessionStorage.getItem('activeCode');
             }
 
-            if (typeof score !== 'number' || isNaN(score)) {
-                console.error(`Invalid score type received: ${score} (type: ${typeof score}). Aborting submission.`);
-                alert(`Could not save score: Invalid score value provided by the game.`);
-                return;
-            }
-            
-            console.log(`Submitting score: ${score} for game: ${gameId}`);
-            try {
-                const payload = { gameId, score };
-
-                const response = await fetch(`${BACKEND_API_URL}/api/score`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json', 
-                        'Authorization': activeToken
-                    },
-                    body: JSON.stringify(payload),
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || "Server failed to save score.");
-                }
-                
-                console.log("Score saved successfully:", result.message);
-                alert(`Score submitted! ${result.message}`);
-
-            } catch (error) {
-                console.error("Error saving score:", error);
-                alert(`Error: ${error.message}`);
-            } finally {
-                allGameButtons.forEach(button => button.disabled = true);
-                statusMessage.textContent = "Score submitted! Please get a new link to play again.";
+            if (!activeCode) {
+                statusMessage.textContent = "Please open this page from the Discord event post — click 🎮 Play the Game to get your personal link.";
                 statusMessage.style.display = 'block';
+                return;
             }
+
+            if (!/^\d{15,22}\.\d{10,}\.[A-Za-z0-9_\-]+$/.test(activeCode)) {
+                statusMessage.textContent = "This link looks invalid. Please click 🎮 Play the Game again in Discord.";
+                statusMessage.style.display = 'block';
+                return;
+            }
+
+            allGameButtons.forEach(button => button.disabled = false);
         }
+
+        function showWinScreen(code) {
+            menuContainer.style.display = 'none';
+            canvasContainer.style.display = 'none';
+            winCode.textContent = code;
+            winScreen.style.display = 'block';
+
+            copyToClipboard(code, /*silent=*/true);
+        }
+
+        async function copyToClipboard(text, silent) {
+            let ok = false;
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    ok = true;
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+            } catch (err) {
+                console.warn("Clipboard copy failed:", err);
+                ok = false;
+            }
+
+            if (!silent || ok) {
+                if (ok) {
+                    copyFeedback.textContent = "✓ Copied to clipboard";
+                    copyFeedback.classList.add('show');
+                    copyButton.classList.add('copied');
+                    copyButton.innerHTML = '✓ Copied!';
+                    setTimeout(() => {
+                        copyButton.classList.remove('copied');
+                        copyButton.innerHTML = '📋 Copy code';
+                        copyFeedback.classList.remove('show');
+                    }, 2000);
+                } else if (!silent) {
+                    copyFeedback.textContent = "Couldn't copy automatically — select the code above and copy manually.";
+                    copyFeedback.style.color = 'var(--danger)';
+                    copyFeedback.classList.add('show');
+                }
+            }
+            return ok;
+        }
+
+        copyButton.addEventListener('click', () => copyToClipboard(activeCode, false));
 
         function cleanupPreviousGame() {
             if (p5Instance) {
@@ -271,16 +413,17 @@
 
             canvasContainer.innerHTML = '';
             canvasContainer.style.display = 'none';
-            menuContainer.style.display = 'block';
+            if (winScreen.style.display !== 'block') {
+                menuContainer.style.display = 'block';
+            }
         }
+        window.cleanupPreviousGame = cleanupPreviousGame;
 
-        
         function loadGame(scriptPath, sketchFunctionName) {
             cleanupPreviousGame();
-            
+
             currentGameSalt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
             sessionStorage.setItem('currentGameSalt', currentGameSalt);
-            console.log("Generated new game salt for this session.");
 
             menuContainer.style.display = 'none';
             canvasContainer.style.display = 'flex';
@@ -293,7 +436,7 @@
                     try {
                         p5Instance = new p5(window[sketchFunctionName], 'game-canvas-container');
                     } catch (err) {
-                        console.error(`Error creating p5 instance:`, err);
+                        console.error("Error creating p5 instance:", err);
                         cleanupPreviousGame();
                     }
                 } else {
@@ -329,15 +472,15 @@
                     frameIndex = (frameIndex + 1) % hoverFrames.length;
                 }, 100);
             });
-            
+
             const stopHover = () => {
                 if (hoverInterval) clearInterval(hoverInterval);
                 hoverInterval = null;
-                button.style.backgroundImage = ''; 
+                button.style.backgroundImage = '';
                 button.style.backgroundSize = '';
                 button.style.backgroundPosition = '';
             };
-            
+
             button.addEventListener('mouseleave', stopHover);
             button.addEventListener('mousedown', () => {
                 if (button.disabled) return;
@@ -357,22 +500,29 @@
             const { gameId, score, salt } = event.detail;
 
             if (!salt || salt !== currentGameSalt) {
-                console.error("Cheating attempt detected! Invalid game salt received.", { expected: currentGameSalt, received: salt });
-                alert("Score submission failed due to a session mismatch. Please try again.");
-                cleanupPreviousGame(); 
+                console.error("Invalid game salt — refusing to reveal code.", { expected: currentGameSalt, received: salt });
+                alert("Session mismatch. Please reload from the Discord link and try again.");
+                cleanupPreviousGame();
                 return;
             }
 
-            console.log("Game salt validated successfully.");
-
-            if (gameId && typeof score === 'number') {
-                saveScore(gameId, score);
-            } else {
-                console.error("Invalid 'gameComplete' event received.", event.detail);
+            if (!activeCode) {
+                alert("No redeem code is attached to this session. Please reload from Discord.");
+                cleanupPreviousGame();
+                return;
             }
-            
+
+            if (typeof score !== 'number' || isNaN(score) || score < 0) {
+                console.error("Invalid score on gameComplete:", event.detail);
+                alert("Score validation failed. Please reload from Discord and try again.");
+                cleanupPreviousGame();
+                return;
+            }
+
             currentGameSalt = null;
             sessionStorage.removeItem('currentGameSalt');
+
+            showWinScreen(activeCode);
         });
 
         function toggleEpCode() {
@@ -417,9 +567,7 @@
 
         const epContainer = document.getElementById('ep-container');
         if (epContainer) {
-            epContainer.addEventListener('click', () => {
-                epContainer.classList.add('hidden');
-            });
+            epContainer.addEventListener('click', () => epContainer.classList.add('hidden'));
         }
 
         window.addEventListener('resize', () => {
@@ -427,10 +575,9 @@
                 p5Instance.windowResized();
             }
         });
-        
+
         window.onload = initializePage;
-    })(); // First 10 human who sends email gets the prize. 
+    })();
     </script>
 </body>
 </html>
-
