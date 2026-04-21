@@ -58,21 +58,23 @@ window.sketchMimesisPong = function(p) {
         { score: 16, name: 'IT BLINKS',       sub: 'Now you see it, now you do not.',
             speedMult: 1.1,  wave: false, blink: true,  reverse: false, paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: false },
         { score: 20, name: 'MIMICRY',         sub: 'It wears your shape.',
-            speedMult: 1.1,  wave: false, blink: false, reverse: false, paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: true  },
+            speedMult: 1.1,  wave: false, blink: false, reverse: false, paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: true,  bgm: false, strobe: false },
+        { score: 22, name: 'PULSE',           sub: 'It has a heartbeat now. Do not miss the beat.',
+            speedMult: 1.1,  wave: false, blink: false, reverse: false, paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: false, bgm: true,  strobe: true  },
         { score: 24, name: 'REFLECTION',      sub: 'Your input is not yours.',
-            speedMult: 1.1,  wave: false, blink: false, reverse: true,  paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: false },
+            speedMult: 1.1,  wave: false, blink: false, reverse: true,  paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: false, strobe: true },
         { score: 28, name: 'DEEP DECEPTION',  sub: 'A false paddle. A false ball.',
-            speedMult: 1.15, wave: false, blink: false, reverse: false, paddleH:  90, multiBall: false, decoyBall: true,  fakePaddle: true  },
+            speedMult: 1.15, wave: false, blink: false, reverse: false, paddleH:  90, multiBall: false, decoyBall: true,  fakePaddle: true,  strobe: true },
         { score: 32, name: 'CLOSING IN',      sub: 'Its paddle shrinks yours.',
-            speedMult: 1.2,  wave: false, blink: false, reverse: false, paddleH:  72, multiBall: false, decoyBall: false, fakePaddle: false },
+            speedMult: 1.2,  wave: false, blink: false, reverse: false, paddleH:  72, multiBall: false, decoyBall: false, fakePaddle: false, strobe: true },
         { score: 37, name: 'MADNESS',         sub: 'Everything wrong, all at once.',
-            speedMult: 1.15, wave: true,  blink: false, reverse: true,  paddleH:  80, multiBall: false, decoyBall: true,  fakePaddle: false },
+            speedMult: 1.15, wave: true,  blink: false, reverse: true,  paddleH:  80, multiBall: false, decoyBall: true,  fakePaddle: false, strobe: true },
         { score: 41, name: 'DECOYS',          sub: 'Two targets. One is a lie. You are smaller now.',
-            speedMult: 1.0,  wave: false, blink: false, reverse: false, paddleH:  72, multiBall: true,  decoyBall: true,  fakePaddle: false },
+            speedMult: 1.0,  wave: false, blink: false, reverse: false, paddleH:  72, multiBall: true,  decoyBall: true,  fakePaddle: false, strobe: true },
         { score: 46, name: 'THE VOID',        sub: 'All hope abandon.',
-            speedMult: 1.3,  wave: true,  blink: true,  reverse: true,  paddleH:  68, multiBall: true,  decoyBall: true,  fakePaddle: true  },
+            speedMult: 1.3,  wave: true,  blink: true,  reverse: true,  paddleH:  68, multiBall: true,  decoyBall: true,  fakePaddle: true,  strobe: true },
         { score: 50, name: 'SURVIVOR',        sub: 'You have outlasted it.',
-            speedMult: 1.0,  wave: false, blink: false, reverse: false, paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: false },
+            speedMult: 1.0,  wave: false, blink: false, reverse: false, paddleH: 100, multiBall: false, decoyBall: false, fakePaddle: false, strobe: false },
     ];
 
     // -----------------------------------------------------------
@@ -175,7 +177,9 @@ window.sketchMimesisPong = function(p) {
     }
 
     // ---- State ----
-    let state = 'INTRO';            // INTRO, PHASE_ANNOUNCE, PLAYING, WIN, GAME_OVER
+    // READY gates the experience on an explicit tap so the player has a chance
+    // to toggle accessibility before anything auto-progresses or plays audio.
+    let state = 'READY';            // READY, INTRO, PHASE_ANNOUNCE, PLAYING, WIN, GAME_OVER
     let score = 0;
     let combo = 0;
     let maxCombo = 0;
@@ -198,6 +202,38 @@ window.sketchMimesisPong = function(p) {
 
     let lastBlinkToggle = 0;
     let blinkVisible = true;
+
+    // ---- Player-paddle highlight at game start ----
+    // Runs for ~3 seconds once PLAYING begins, so the player can spot which paddle they're controlling.
+    const HIGHLIGHT_FRAMES = 180;
+    let paddleHighlightTimer = 0;
+
+    // ---- BGM + beat-synced strobe (PULSE phase) ----
+    const BGM_URL = 'src/bgm/bgm.mp3';
+    const BPM = 140;
+    const STROBE_COLORS = [
+        [255,  90, 120],   // red
+        [120, 220, 140],   // green
+        [110, 170, 255],   // blue
+        [255, 220,  90],   // yellow
+        [205, 130, 255],   // purple
+    ];
+    // Reduced-motion flag. Seeded from the OS preference, but the player can
+    // toggle it via the on-screen accessibility button. When TRUE: no strobe,
+    // no bgm, no static — a calmer experience.
+    let reducedMotion = !!(typeof window !== 'undefined'
+        && window.matchMedia
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const STATIC_URL = 'src/bgm/static.mp3';
+    const PING_URL   = 'src/sfx/ping.mp3';   // AI paddle hit
+    const PONG_URL   = 'src/sfx/pong.mp3';   // Player paddle hit
+    let bgm = null;                // HTMLAudioElement — kicks in at PULSE
+    let bgmStarted = false;
+    let bgmFadingOut = false;
+    let staticAudio = null;        // HTMLAudioElement — ambient loop until PULSE
+    let staticStarted = false;
+    let pingSfx = null;
+    let pongSfx = null;
 
     // ---- Signature gimmicks ----
     let decoyActive = false;         // DOPPELGANGER / DECOYS / VOID
@@ -242,6 +278,23 @@ window.sketchMimesisPong = function(p) {
     let canvasEl = null;
     let hintEl = null;
     let resizeHandler = null;
+    let arcadeFrameEl = null;
+    let arcadeScreenEl = null;
+    let arcadeVignetteEl = null;
+    let a11yToggleEl = null;
+    let originalBodyBg = null;
+    let originalContainerBg = null;
+
+    // Arcade background measurements (image is 712 × 1025).
+    // Screen rectangle inside the cabinet runs from (111, 400) to (592, 842).
+    const ARCADE = {
+        imgW: 712,
+        imgH: 1025,
+        screenLeftPct:   (111 / 712) * 100,
+        screenTopPct:    (400 / 1025) * 100,
+        screenWidthPct:  ((592 - 111) / 712) * 100,
+        screenHeightPct: ((842 - 400) / 1025) * 100,
+    };
 
     function getPhaseForScore(s) {
         let ph = 0;
@@ -293,6 +346,8 @@ window.sketchMimesisPong = function(p) {
         fakePaddleSettleTimer = 0;
         mainPrevX = W / 2;
 
+        paddleHighlightTimer = HIGHLIGHT_FRAMES;
+
         introLang = detectLang();
         introSlides = INTRO_SLIDES[introLang] || INTRO_SLIDES['en'];
         introSkipHint = INTRO_SKIP_HINT[introLang] || INTRO_SKIP_HINT['en'];
@@ -305,10 +360,29 @@ window.sketchMimesisPong = function(p) {
         endingHoldTimer = 0;
         gameOutcome = null;
 
-        state = 'INTRO';
+        state = 'READY';
         phaseAnnounceName = PHASES[0].name;
         phaseAnnounceSubtitle = PHASES[0].sub;
         phaseAnnounceTimer = 90;
+    }
+
+    // Called once the player taps the READY screen. Kicks off audio (unless
+    // reducedMotion is on) and drops us into the intro.
+    function beginFromReady() {
+        if (state !== 'READY') return;
+        state = 'INTRO';
+
+        if (!reducedMotion && staticAudio && !staticStarted) {
+            try {
+                const sp = staticAudio.play();
+                if (sp && typeof sp.catch === 'function') {
+                    sp.catch((err) => console.warn('[mimesis-pong] static play rejected:', err));
+                }
+                staticStarted = true;
+            } catch (e) {
+                console.warn('[mimesis-pong] static play threw:', e);
+            }
+        }
     }
 
     function advanceIntro() {
@@ -346,67 +420,310 @@ window.sketchMimesisPong = function(p) {
 
     p.setup = function() {
         const container = document.getElementById('game-canvas-container');
+
+        // Hide the menu page background while the cabinet is on-screen so we don't
+        // see two overlapping backdrops. Paint the container itself with a deep
+        // radial gradient — focus pulled to the cabinet, dark on the edges.
+        originalBodyBg = document.body.style.backgroundImage;
+        document.body.style.backgroundImage = 'none';
+        originalContainerBg = container.style.backgroundColor;
+        // Tighter pool of light around the cabinet, then pure black "dark room" edges.
+        container.style.background =
+            'radial-gradient(ellipse 55% 55% at center, #0e1030 0%, #050616 28%, #000 55%)';
+        // Clip any cabinet overflow when we zoom the cabinet on small screens.
+        container.style.overflow = 'hidden';
+
+        // Build the arcade-cabinet wrapper. Z-stack (back → front):
+        //   .arcade-screen   → z 1  (canvas inside; visible through the bg's transparent screen window)
+        //   .arcade-glow     → z 2  (CRT halo leaking around the bezel; behind the bg)
+        //   <img arcadebg>   → z 3  (cabinet artwork on TOP of the canvas — bezel covers canvas overflow)
+        //   .arcade-overlay  → z 4  (dark gradient cover over the whole cabinet for mood)
+        // Cabinet zoom: fill the viewport — height-bound on landscape, width-bound
+        // on portrait. The min() picks whichever dimension constrains so the cabinet
+        // fills as much of the screen as possible while preserving aspect. On mobile
+        // we additionally scale-up around the screen center so the CRT dominates.
+        const cabinetAspect = ARCADE.imgW / ARCADE.imgH;     // 712 / 1025 ≈ 0.694
+        // Screen center (for transform-origin) in % of cabinet dimensions.
+        const screenCenterX = ARCADE.screenLeftPct + ARCADE.screenWidthPct / 2;
+        const screenCenterY = ARCADE.screenTopPct + ARCADE.screenHeightPct / 2;
+
+        arcadeFrameEl = document.createElement('div');
+        arcadeFrameEl.id = 'mimesis-pong-arcade';
+        arcadeFrameEl.style.cssText = [
+            'position: relative',
+            `width: min(98vw, calc(96vh * ${cabinetAspect}))`,
+            'max-height: 100vh',
+            'margin: 0 auto',
+            'flex: 0 0 auto',
+            `transform-origin: ${screenCenterX}% ${screenCenterY}%`,
+            // Soft drop shadow + subtle ambient glow for the cabinet itself
+            'filter: drop-shadow(0 30px 50px rgba(0,0,0,0.7)) drop-shadow(0 0 26px rgba(120, 60, 200, 0.18))',
+        ].join(';');
+
+        // Apply mobile zoom: scale the cabinet around the screen center. Container's
+        // overflow:hidden keeps the overflow from leaking. Re-applied on resize.
+        const applyZoom = () => {
+            const isMobile = window.matchMedia('(max-width: 820px), (orientation: portrait)').matches;
+            arcadeFrameEl.style.transform = isMobile ? 'scale(1.5)' : 'scale(1.0)';
+        };
+        applyZoom();
+
+        // Screen — drawn FIRST so it sits behind the bg image
+        arcadeScreenEl = document.createElement('div');
+        arcadeScreenEl.className = 'arcade-screen';
+        arcadeScreenEl.style.cssText = [
+            'position: absolute',
+            `left: ${ARCADE.screenLeftPct}%`,
+            `top: ${ARCADE.screenTopPct}%`,
+            `width: ${ARCADE.screenWidthPct}%`,
+            `height: ${ARCADE.screenHeightPct}%`,
+            'background: #000',                 // letterbox color (canvas is 16:9 inside near-square area)
+            'display: flex',
+            'align-items: center',
+            'justify-content: center',
+            'overflow: hidden',
+            'z-index: 1',
+            // Padding is handled in sizeCanvas via a SAFE margin so we can compute
+            // inner dimensions reliably regardless of % padding resolution quirks.
+            'box-sizing: border-box',
+            // Brighter CRT glow: subtle inner shadow for recess + strong cyan rim + outer halo
+            'box-shadow: inset 0 0 40px rgba(0,0,0,0.7), inset 0 0 14px rgba(180, 230, 255, 0.55), 0 0 70px rgba(116, 199, 236, 0.45)',
+        ].join(';');
+
+        // Soft halo behind the screen — extends past the bezel, blurred. Reads as
+        // "the CRT is glowing into the cabinet."
+        const glowEl = document.createElement('div');
+        glowEl.className = 'arcade-glow';
+        glowEl.style.cssText = [
+            'position: absolute',
+            `left: ${ARCADE.screenLeftPct - 5}%`,
+            `top: ${ARCADE.screenTopPct - 5}%`,
+            `width: ${ARCADE.screenWidthPct + 10}%`,
+            `height: ${ARCADE.screenHeightPct + 10}%`,
+            'background: radial-gradient(ellipse at center, rgba(116,199,236,0.30) 0%, rgba(120,60,200,0.18) 45%, transparent 75%)',
+            'filter: blur(22px)',
+            'pointer-events: none',
+            'z-index: 2',
+        ].join(';');
+
+        // Cabinet artwork — sits on TOP of canvas + glow. Its bezel naturally
+        // covers any canvas overflow because the screen window is transparent (alpha=0).
+        // Brightness filter darkens the cabinet artwork without touching the screen
+        // (which is behind the bg image, visible through the transparent screen window).
+        const bgImg = document.createElement('img');
+        bgImg.src = 'src/ui/arcadebg.webp';
+        bgImg.alt = '';
+        bgImg.style.cssText = [
+            'display: block',
+            'position: relative',
+            'width: 100%',
+            'height: auto',
+            'user-select: none',
+            '-webkit-user-drag: none',
+            'pointer-events: none',
+            'z-index: 3',
+            'filter: brightness(0.55) contrast(1.08) saturate(0.92)',
+        ].join(';');
+
+        // Vignette over the WHOLE container — pitch-black corners + pitch-black edges.
+        // Stacked gradients: radial for the overall pool, plus linear gradients on
+        // each side so the 4 edges go to true black fast regardless of viewport shape.
+        arcadeVignetteEl = document.createElement('div');
+        arcadeVignetteEl.style.cssText = [
+            'position: absolute',
+            'inset: 0',
+            'pointer-events: none',
+            'background: ' + [
+                // Edge falloffs: first 10% and last 10% of each axis → solid black
+                'linear-gradient(to right,  #000 0%, rgba(0,0,0,0.85) 6%, transparent 15%, transparent 85%, rgba(0,0,0,0.85) 94%, #000 100%)',
+                'linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.85) 6%, transparent 15%, transparent 85%, rgba(0,0,0,0.85) 94%, #000 100%)',
+                // Corner darkening via tight radial
+                'radial-gradient(ellipse 60% 60% at center, transparent 0%, transparent 28%, rgba(0,0,0,0.6) 55%, rgba(0,0,0,0.95) 78%, #000 92%)',
+            ].join(', '),
+            'z-index: 5',
+        ].join(';');
+
+        arcadeFrameEl.appendChild(arcadeScreenEl);  // z 1 (back)
+        arcadeFrameEl.appendChild(glowEl);          // z 2
+        arcadeFrameEl.appendChild(bgImg);           // z 3 (covers canvas overflow)
+        container.appendChild(arcadeFrameEl);
+        container.appendChild(arcadeVignetteEl);    // z 5 (over everything)
+
+        // Now create the p5 canvas (it'll initially attach inside game-canvas-container
+        // because that's what we passed to `new p5(..., 'game-canvas-container')`),
+        // then reparent it into the arcade screen.
         const canvas = p.createCanvas(W, H);
         canvasEl = canvas.elt;
-        // Compute explicit pixel sizes from the viewport so mobile browsers without
-        // aspect-ratio CSS still get the correct 16:9 shape.
-        function sizeCanvas() {
-            const vw = Math.min(window.innerWidth * 0.88, 960);
-            const vh = vw * 9 / 16;
-            canvasEl.style.width = `${vw}px`;
-            canvasEl.style.height = `${vh}px`;
-            canvasEl.style.flex = '0 0 auto';         // defeat flex-stretch
-        }
-
-        // The container just flipped from display:none → flex. Layout may not be
-        // settled on the first frame, so run sizeCanvas multiple times: now, next
-        // paint, and a couple safety retries. Also observe the window for any
-        // subsequent resizes (orientation change, devtools toggle, etc.).
-        sizeCanvas();
-        requestAnimationFrame(sizeCanvas);
-        setTimeout(sizeCanvas,  60);
-        setTimeout(sizeCanvas, 250);
-        setTimeout(sizeCanvas, 800);
-
-        resizeHandler = () => sizeCanvas();
-        window.addEventListener('resize', resizeHandler);
-        window.addEventListener('orientationchange', resizeHandler);
-
-        // ResizeObserver catches container/CSS changes that don't fire window resize.
-        if (typeof ResizeObserver !== 'undefined') {
-            const ro = new ResizeObserver(() => sizeCanvas());
-            ro.observe(document.documentElement);
-            // Store so cleanup can disconnect
-            canvasEl._mimesisPongRO = ro;
-        }
+        arcadeScreenEl.appendChild(canvasEl);
 
         canvasEl.style.touchAction = 'none';
         p.textFont('monospace');
         p.pixelDensity(1);
 
-        // Hint element under the canvas.
+        // Use native HTMLAudioElements. More reliable than p5.sound and respects
+        // the user-gesture chain from the menu-button click so autoplay isn't
+        // blocked. We have two loops: `staticAudio` plays ambient static right
+        // from setup, and `bgm` kicks in at PULSE, replacing the static.
+        // Create audio elements up-front (cheap) but DO NOT play yet — wait for
+        // the player to tap through the READY gate so they can opt into
+        // reduced motion first if they want.
+        try {
+            staticAudio = new Audio(STATIC_URL);
+            staticAudio.loop = true;
+            staticAudio.volume = 0.32;
+            staticAudio.preload = 'auto';
+            staticAudio.addEventListener('error', (e) => {
+                console.warn('[mimesis-pong] static element error:', e, staticAudio && staticAudio.error);
+            });
+        } catch (e) {
+            console.warn('[mimesis-pong] static creation failed:', e);
+            staticAudio = null;
+        }
+        try {
+            bgm = new Audio(BGM_URL);
+            bgm.loop = true;
+            bgm.volume = 0.55;
+            bgm.preload = 'auto';
+            bgm.addEventListener('error', (e) => {
+                console.warn('[mimesis-pong] bgm element error:', e, bgm && bgm.error);
+            });
+        } catch (e) {
+            console.warn('[mimesis-pong] bgm element creation failed:', e);
+            bgm = null;
+        }
+
+        // Short paddle-hit SFX. We play a fresh clone on each hit so rapid-fire
+        // rallies don't cut each other off.
+        try {
+            pingSfx = new Audio(PING_URL);  pingSfx.preload = 'auto';  pingSfx.volume = 0.75;
+            pongSfx = new Audio(PONG_URL);  pongSfx.preload = 'auto';  pongSfx.volume = 0.75;
+        } catch (e) {
+            console.warn('[mimesis-pong] sfx element creation failed:', e);
+        }
+
+        // Fit the 16:9 canvas inside the arcade-screen rect, centered, with a safe
+        // inner margin so the paddles (at x=PADDLE_MARGIN in canvas coords) aren't
+        // clipped by the bezel art surrounding the transparent screen window.
+        // SAFE = fraction of screen dims the canvas is allowed to occupy.
+        const SAFE_W = 0.90;
+        const SAFE_H = 0.92;
+        function sizeCanvas() {
+            if (!arcadeScreenEl) return;
+            const r = arcadeScreenEl.getBoundingClientRect();
+            if (r.width <= 0 || r.height <= 0) return;
+            const availW = r.width * SAFE_W;
+            const availH = r.height * SAFE_H;
+            const target = 16 / 9;
+            const availAspect = availW / availH;
+            let cw, ch;
+            if (availAspect > target) {
+                ch = availH; cw = ch * target;
+            } else {
+                cw = availW; ch = cw / target;
+            }
+            canvasEl.style.width = `${cw}px`;
+            canvasEl.style.height = `${ch}px`;
+            canvasEl.style.flex = '0 0 auto';
+        }
+
+        // Run sizing now + after layout settles + on every viewport change.
+        // The arcade-bg image dimensions only become available after it loads,
+        // so re-run when it does.
+        sizeCanvas();
+        if (!bgImg.complete) bgImg.addEventListener('load', sizeCanvas, { once: true });
+        requestAnimationFrame(sizeCanvas);
+        setTimeout(sizeCanvas, 60);
+        setTimeout(sizeCanvas, 250);
+        setTimeout(sizeCanvas, 800);
+
+        resizeHandler = () => { applyZoom(); sizeCanvas(); };
+        window.addEventListener('resize', resizeHandler);
+        window.addEventListener('orientationchange', resizeHandler);
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => sizeCanvas());
+            ro.observe(document.documentElement);
+            ro.observe(arcadeFrameEl);
+            canvasEl._mimesisPongRO = ro;
+        }
+
+        // Hint element below the cabinet — z above the vignette so it stays readable.
         hintEl = document.createElement('div');
         hintEl.id = 'mimesis-pong-hint';
         hintEl.textContent = '📱 Slide your finger up or down to move your paddle.  ⌨️ Arrow keys / W·S / mouse also work.';
         hintEl.style.cssText = [
             'position: absolute',
-            'bottom: 12px',
+            'bottom: 10px',
             'left: 50%',
             'transform: translateX(-50%)',
-            'max-width: 92vw',
+            'max-width: 94vw',
             'text-align: center',
-            'color: rgba(205, 214, 244, 0.78)',
+            'color: rgba(220, 228, 255, 0.95)',
             'font-size: 12px',
             'line-height: 1.45',
             'font-family: Inter, "Segoe UI", system-ui, sans-serif',
-            'padding: 6px 10px',
-            'background: rgba(18, 20, 40, 0.55)',
-            'border-radius: 6px',
-            'backdrop-filter: blur(4px)',
+            'padding: 7px 12px',
+            'background: rgba(20, 22, 46, 0.85)',
+            'border: 1px solid rgba(138, 180, 255, 0.18)',
+            'border-radius: 8px',
+            'backdrop-filter: blur(6px)',
             'pointer-events: none',
-            'z-index: 3',
+            'z-index: 10',           // above the vignette (z 5) so it isn't darkened
         ].join(';');
-        (container || document.body).appendChild(hintEl);
+        container.appendChild(hintEl);
+
+        // Accessibility toggle — proportional bottom-right, always clickable.
+        // Lets the player disable motion + sound before (or during) the game.
+        a11yToggleEl = document.createElement('button');
+        a11yToggleEl.id = 'mimesis-pong-a11y';
+        a11yToggleEl.type = 'button';
+        a11yToggleEl.setAttribute('aria-pressed', String(reducedMotion));
+        a11yToggleEl.style.cssText = [
+            'position: absolute',
+            'bottom: 3vh',
+            'right: 3vw',
+            'padding: 8px 12px',
+            'min-height: 38px',
+            'min-width: 44px',
+            'font-family: Inter, "Segoe UI", system-ui, sans-serif',
+            'font-size: 12px',
+            'font-weight: 600',
+            'letter-spacing: 0.02em',
+            'color: rgba(220, 228, 255, 0.95)',
+            'background: rgba(20, 22, 46, 0.88)',
+            'border: 1px solid rgba(138, 180, 255, 0.25)',
+            'border-radius: 999px',
+            'cursor: pointer',
+            'user-select: none',
+            '-webkit-tap-highlight-color: transparent',
+            'pointer-events: auto',
+            'z-index: 20',
+            'backdrop-filter: blur(6px)',
+            'box-shadow: 0 6px 18px rgba(0,0,0,0.4)',
+        ].join(';');
+        function paintA11yToggle() {
+            const on = reducedMotion;
+            a11yToggleEl.textContent = on ? '♿ Reduced motion: ON' : '♿ Reduced motion: OFF';
+            a11yToggleEl.style.background = on ? 'rgba(166, 227, 161, 0.22)' : 'rgba(20, 22, 46, 0.88)';
+            a11yToggleEl.style.borderColor = on ? 'rgba(166, 227, 161, 0.6)' : 'rgba(138, 180, 255, 0.25)';
+            a11yToggleEl.style.color = on ? 'rgba(225, 250, 215, 0.98)' : 'rgba(220, 228, 255, 0.95)';
+            a11yToggleEl.setAttribute('aria-pressed', String(on));
+        }
+        paintA11yToggle();
+        const flipA11y = (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            reducedMotion = !reducedMotion;
+            paintA11yToggle();
+            if (reducedMotion) {
+                // Immediately silence any playing audio and kill strobe next frame.
+                try { if (staticAudio) staticAudio.pause(); } catch (e) {}
+                try { if (bgm) bgm.pause(); } catch (e) {}
+            }
+        };
+        a11yToggleEl.addEventListener('click', flipA11y);
+        a11yToggleEl.addEventListener('touchstart', flipA11y, { passive: false });
+        container.appendChild(a11yToggleEl);
 
         // Prevent page scroll on touch over canvas
         touchPreventer = (e) => {
@@ -438,6 +755,7 @@ window.sketchMimesisPong = function(p) {
         drawBackground();
 
         switch (state) {
+            case 'READY':          drawReady(); break;
             case 'INTRO':          updateIntro(); drawIntro(); break;
             case 'PLAYING':        updateGame(); drawGame(); break;
             case 'PHASE_ANNOUNCE': updatePhaseAnnounce(); drawGame(); drawPhaseAnnounce(); break;
@@ -479,6 +797,32 @@ window.sketchMimesisPong = function(p) {
     // ============================================================
     //  Intro
     // ============================================================
+
+    // READY: inviting start screen. Player taps to begin (giving them time to
+    // toggle reduced motion via the bottom-right button beforehand).
+    function drawReady() {
+        p.noStroke();
+        p.fill(0, 0, 0, 200);
+        p.rect(0, 0, W, H);
+
+        const pulse = (Math.sin(p.frameCount * 0.06) + 1) / 2; // 0..1
+        const prompt = 'TAP TO ENTER';
+        const sub    = 'Use the ♿ button in the bottom right if you want to reduce motion + sound.';
+
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textStyle(p.BOLD);
+        p.drawingContext.shadowBlur = 22;
+        p.drawingContext.shadowColor = `rgba(${PALETTE.accent[0]}, ${PALETTE.accent[1]}, ${PALETTE.accent[2]}, ${0.3 + 0.45 * pulse})`;
+        p.fill(235, 240, 255, 190 + 60 * pulse);
+        p.textSize(36);
+        p.text(prompt, W / 2, H / 2 - 12);
+        p.drawingContext.shadowBlur = 0;
+
+        p.textStyle(p.NORMAL);
+        p.fill(190, 198, 220, 200);
+        p.textSize(14);
+        p.text(sub, W * 0.1, H / 2 + 30, W * 0.8, 60);
+    }
 
     function updateIntro() {
         introSlideTimer--;
@@ -603,6 +947,9 @@ window.sketchMimesisPong = function(p) {
     // ============================================================
 
     function updateGame() {
+        // Tick the 3-second player-paddle highlight down while actively playing.
+        if (state === 'PLAYING' && paddleHighlightTimer > 0) paddleHighlightTimer--;
+
         // Touch takes priority — it drives playerY directly via p.touchMoved.
         // Skip both mouse-pointer and keyboard logic while a finger is down.
         const touchActive = touchOriginY !== null;
@@ -648,6 +995,7 @@ window.sketchMimesisPong = function(p) {
                 endingHoldTimer = END_HOLD_FRAMES;
                 shakeAmount = 20;
                 flashAlpha = 200;
+                fadeOutBgm();
                 return;
             }
 
@@ -708,14 +1056,16 @@ window.sketchMimesisPong = function(p) {
                     onPaddleHit(ball, 'player');
                 }
 
-                // AI paddle collision (forgiving: +20px vertical tolerance on each side
-                // so a tad-bit-late AI still bounces the ball back)
-                const AI_TOLERANCE = 20;
+                // AI paddle collision — the AI NEVER misses. Whenever the ball
+                // reaches the AI paddle's X-line, we snap the paddle to the
+                // ball's Y and bounce it back. This keeps the game entirely
+                // about the PLAYER's skill, not the AI's reaction time (which
+                // the smaller paddles in late phases would break).
                 if (ball.dx > 0 &&
                     ball.x + BALL_R >= W - PADDLE_MARGIN - PADDLE_W - 4 &&
-                    ball.x + BALL_R <= W - PADDLE_MARGIN + 10 &&
-                    effectiveY >= aiY - AI_TOLERANCE &&
-                    effectiveY <= aiY + paddleH + AI_TOLERANCE) {
+                    ball.x + BALL_R <= W - PADDLE_MARGIN + 10) {
+                    // Snap paddle so the visual matches the bounce point.
+                    aiY = p.constrain(effectiveY - paddleH / 2, 0, H - paddleH);
                     ball.dx = -Math.abs(ball.dx);
                     ball.x = W - PADDLE_MARGIN - PADDLE_W - BALL_R - 5;
 
@@ -801,6 +1151,7 @@ window.sketchMimesisPong = function(p) {
             gameOutcome = 'GAME_OVER';
             endingHoldTimer = END_HOLD_FRAMES;
             shakeAmount = 15;
+            fadeOutBgm();
         }
         // Purge dead decoys to keep the array bounded
         balls = balls.filter(b => !(b.isDecoy && !b.alive));
@@ -842,6 +1193,23 @@ window.sketchMimesisPong = function(p) {
             }
             balls.push(newBall);
         }
+
+        // BGM: kicks in when we hit the first phase that opts in. Static fades out
+        // at the same moment so we get a clean cross-feel ("signal stabilizes").
+        if (phase.bgm && !bgmStarted && !reducedMotion && bgm) {
+            try {
+                const playPromise = bgm.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch((err) => {
+                        console.warn('[mimesis-pong] bgm play was rejected:', err);
+                    });
+                }
+                bgmStarted = true;
+                fadeOutStatic();
+            } catch (e) {
+                console.warn('[mimesis-pong] bgm play threw:', e);
+            }
+        }
     }
 
     function spawnDecoyBall(x, y, color) {
@@ -878,6 +1246,65 @@ window.sketchMimesisPong = function(p) {
             ball.y, 8 + combo * 2,
             side === 'player' ? PALETTE.player : PALETTE.ai
         );
+        playPaddleSfx(side);
+    }
+
+    // Plays a fresh clone of the correct SFX so consecutive rallies don't
+    // truncate each other. Respects reducedMotion (silent if ON).
+    function playPaddleSfx(side) {
+        if (reducedMotion) return;
+        const src = side === 'player' ? pongSfx : pingSfx;
+        if (!src) return;
+        try {
+            const shot = src.cloneNode();
+            shot.volume = src.volume;
+            const pp = shot.play();
+            if (pp && typeof pp.catch === 'function') {
+                pp.catch(() => {}); // ignore autoplay / interrupt errors
+            }
+        } catch (e) {
+            // Fallback: replay the singleton
+            try { src.currentTime = 0; src.play(); } catch (e2) {}
+        }
+    }
+
+    function fadeOutStatic() {
+        if (!staticAudio || !staticStarted) return;
+        staticStarted = false;
+        const startVol = staticAudio.volume;
+        const startTs  = Date.now();
+        const durMs    = 450;
+        const tick = () => {
+            if (!staticAudio) return;
+            const t = Math.min(1, (Date.now() - startTs) / durMs);
+            try { staticAudio.volume = Math.max(0, startVol * (1 - t)); } catch (e) {}
+            if (t < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                try { staticAudio.pause(); staticAudio.currentTime = 0; } catch (e) {}
+            }
+        };
+        requestAnimationFrame(tick);
+    }
+
+    function fadeOutBgm() {
+        if (!bgm || !bgmStarted || bgmFadingOut) return;
+        bgmFadingOut = true;
+        // Manual linear fade from the current volume down to 0 over ~1.2s.
+        const startVol = bgm.volume;
+        const startTs  = Date.now();
+        const durMs    = 1200;
+        const tick = () => {
+            if (!bgm) return;
+            const t = Math.min(1, (Date.now() - startTs) / durMs);
+            try { bgm.volume = Math.max(0, startVol * (1 - t)); } catch (e) {}
+            if (t < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                try { bgm.pause(); bgm.currentTime = 0; } catch (e) {}
+            }
+        };
+        requestAnimationFrame(tick);
     }
 
     function updateFakePaddle() {
@@ -1006,6 +1433,33 @@ window.sketchMimesisPong = function(p) {
         p.fill(255, 255, 255, 60);
         p.rect(PADDLE_MARGIN, playerY, 2, paddleH, 2);
 
+        // "YOU" highlight for the first ~3 seconds of play: pulsing yellow glow + label.
+        if (paddleHighlightTimer > 0) {
+            const phase = (Math.sin(p.frameCount * 0.28) + 1) / 2;   // 0..1 pulse
+            const fade = Math.min(1, paddleHighlightTimer / 30);     // last half-second fades out
+            const glowAlpha = (0.55 + 0.45 * phase) * fade;
+
+            // Pulsing yellow halo around player paddle
+            p.drawingContext.shadowBlur = 32 + 18 * phase;
+            p.drawingContext.shadowColor = `rgba(255, 230, 110, ${glowAlpha})`;
+            p.noStroke();
+            p.fill(255, 240, 170, (200 + 55 * phase) * fade);
+            p.rect(PADDLE_MARGIN - 2, playerY - 2, PADDLE_W + 4, paddleH + 4, 5);
+            p.drawingContext.shadowBlur = 0;
+
+            // "YOU" label above paddle, clamped so it never goes off canvas
+            const labelY = Math.max(24, playerY - 10);
+            p.textAlign(p.CENTER, p.BOTTOM);
+            p.textSize(18);
+            p.textStyle(p.BOLD);
+            p.drawingContext.shadowBlur = 14;
+            p.drawingContext.shadowColor = `rgba(255, 230, 110, ${0.7 * fade})`;
+            p.fill(255, 230, 110, (220 + 35 * phase) * fade);
+            p.text('YOU', PADDLE_MARGIN + PADDLE_W / 2, labelY);
+            p.drawingContext.shadowBlur = 0;
+            p.textStyle(p.NORMAL);
+        }
+
         p.drawingContext.shadowBlur = 12;
         p.drawingContext.shadowColor = `rgba(${PALETTE.ai[0]}, ${PALETTE.ai[1]}, ${PALETTE.ai[2]}, 0.6)`;
         p.fill(PALETTE.ai[0], PALETTE.ai[1], PALETTE.ai[2]);
@@ -1014,8 +1468,40 @@ window.sketchMimesisPong = function(p) {
         p.fill(255, 255, 255, 60);
         p.rect(W - PADDLE_MARGIN - 2, aiY, 2, paddleH, 2);
 
+        drawBeatStrobe();   // over the playfield, under the HUD so score stays readable
         drawHUD();
         drawArgMarker();
+    }
+
+    // Beat-synced color wash during PULSE. Kept deliberately subtle (max alpha
+    // ~12%, no white flashes) to avoid seizure triggers; fully disabled if the
+    // user has prefers-reduced-motion set.
+    function drawBeatStrobe() {
+        if (reducedMotion) return;
+        const phase = PHASES[currentPhase];
+        if (!phase || !phase.strobe) return;
+
+        const ms = p.millis();
+        const periodMs = 60000 / BPM;            // ~428.6ms per beat
+        const beatIdx  = Math.floor(ms / periodMs);
+        const beatPos  = (ms % periodMs) / periodMs;   // 0..1 within the beat
+        // Sharp attack, quick decay — a thump, not a strobe.
+        const envelope = Math.max(0, 1 - beatPos * 4);
+        if (envelope <= 0.02) return;
+
+        const color = STROBE_COLORS[beatIdx % STROBE_COLORS.length];
+        const alpha = envelope * 30;            // max ~30/255 ≈ 12%. Subtle.
+
+        p.noStroke();
+        p.fill(color[0], color[1], color[2], alpha);
+        p.rect(0, 0, W, H);
+
+        // Subtle pulse on the paddles' outer rim in beat-color to reinforce the
+        // rhythm without full-screen flashes.
+        const rimAlpha = envelope * 80;
+        p.fill(color[0], color[1], color[2], rimAlpha);
+        p.rect(PADDLE_MARGIN - 2, playerY - 2, 2, paddleH + 4, 2);
+        p.rect(W - PADDLE_MARGIN,   aiY - 2, 2, paddleH + 4, 2);
     }
 
     // Unlocks post-phase-5 (MIMICRY). Part of the ARG — intentionally subtle
@@ -1240,6 +1726,10 @@ window.sketchMimesisPong = function(p) {
 
     p.keyPressed = function() {
         keysDown[p.keyCode] = true;
+        if (state === 'READY' && (p.keyCode === 32 || p.keyCode === 13)) {
+            beginFromReady();
+            return false;
+        }
         if (state === 'INTRO' && (p.keyCode === 32 || p.keyCode === 13)) {
             advanceIntro();
             return false;
@@ -1271,7 +1761,8 @@ window.sketchMimesisPong = function(p) {
     };
 
     p.mousePressed = function() {
-        if (state === 'INTRO') { advanceIntro(); return false; }
+        if (state === 'READY')  { beginFromReady(); return false; }
+        if (state === 'INTRO')  { advanceIntro(); return false; }
         if (state === 'ENDING') { advanceEnding(); return false; }
         return true;
     };
@@ -1279,7 +1770,8 @@ window.sketchMimesisPong = function(p) {
     // Floating-thumbstick touch control: first tap = origin, subsequent drag = delta.
     // Lifting the finger clears the origin; the next tap anywhere re-anchors.
     p.touchStarted = function() {
-        if (state === 'INTRO') { advanceIntro(); return false; }
+        if (state === 'READY')  { beginFromReady(); return false; }
+        if (state === 'INTRO')  { advanceIntro(); return false; }
         if (state === 'ENDING') { advanceEnding(); return false; }
         if (p.touches.length > 0) {
             touchOriginY = p.touches[0].y;
@@ -1289,7 +1781,7 @@ window.sketchMimesisPong = function(p) {
     };
 
     p.touchMoved = function() {
-        if (state === 'INTRO' || state === 'ENDING') return false;
+        if (state === 'READY' || state === 'INTRO' || state === 'ENDING') return false;
         if (p.touches.length > 0 && touchOriginY !== null) {
             const dy = p.touches[0].y - touchOriginY;
             const signed = controlReversed ? -dy : dy;
@@ -1315,6 +1807,21 @@ window.sketchMimesisPong = function(p) {
 
     p.cleanup = function() {
         p.noLoop();
+        if (bgm) {
+            try { bgm.pause(); } catch (e) {}
+            try { bgm.src = ''; bgm.load(); } catch (e) {}
+            bgm = null;
+        }
+        if (staticAudio) {
+            try { staticAudio.pause(); } catch (e) {}
+            try { staticAudio.src = ''; staticAudio.load(); } catch (e) {}
+            staticAudio = null;
+        }
+        pingSfx = null;
+        pongSfx = null;
+        bgmStarted = false;
+        bgmFadingOut = false;
+        staticStarted = false;
         if (touchPreventer) {
             document.removeEventListener('touchmove', touchPreventer);
             document.removeEventListener('touchstart', touchPreventer);
@@ -1332,6 +1839,33 @@ window.sketchMimesisPong = function(p) {
         if (hintEl && hintEl.parentNode) {
             hintEl.parentNode.removeChild(hintEl);
             hintEl = null;
+        }
+        if (a11yToggleEl && a11yToggleEl.parentNode) {
+            a11yToggleEl.parentNode.removeChild(a11yToggleEl);
+            a11yToggleEl = null;
+        }
+        if (arcadeFrameEl && arcadeFrameEl.parentNode) {
+            arcadeFrameEl.parentNode.removeChild(arcadeFrameEl);
+            arcadeFrameEl = null;
+            arcadeScreenEl = null;
+        }
+        if (arcadeVignetteEl && arcadeVignetteEl.parentNode) {
+            arcadeVignetteEl.parentNode.removeChild(arcadeVignetteEl);
+            arcadeVignetteEl = null;
+        }
+        // Restore the menu page's background.
+        if (originalBodyBg !== null) {
+            document.body.style.backgroundImage = originalBodyBg;
+            originalBodyBg = null;
+        }
+        const container = document.getElementById('game-canvas-container');
+        if (container) {
+            container.style.background = '';
+            container.style.overflow = '';
+            if (originalContainerBg !== null) {
+                container.style.backgroundColor = originalContainerBg;
+            }
+            originalContainerBg = null;
         }
     };
 };
