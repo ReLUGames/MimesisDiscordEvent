@@ -5,6 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIMESIS — Event Challenge</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/p5.min.js"></script>
+    <script>
+    // Polyfill: p5.sound 1.8.0 calls audioContext.audioWorklet.addModule(...) during
+    // its addon init. On Chromium mobile, Firefox Android, and any browser where the
+    // AudioContext hasn't been user-gesture-resumed yet, `audioWorklet` can be
+    // undefined and p5.sound throws before our sketch ever runs. Stubbing the getter
+    // with a no-op addModule keeps init alive; real AudioWorklet support (when
+    // present) still works because we only install the stub when missing.
+    (function () {
+        if (typeof AudioContext === 'undefined') return;
+        const proto = AudioContext.prototype;
+        if ('audioWorklet' in proto) return;
+        try {
+            Object.defineProperty(proto, 'audioWorklet', {
+                configurable: true,
+                get() { return { addModule: () => Promise.resolve() }; },
+            });
+        } catch (e) {
+            console.warn('audioWorklet polyfill failed:', e);
+        }
+    })();
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/addons/p5.sound.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -128,6 +149,13 @@
             display: block;
             box-shadow: 0 4px 24px rgba(0,0,0,0.35);
             border-radius: 8px;
+        }
+
+        /* Safety-net: force 16:9 on the game canvas even if JS sizing is cached stale */
+        #game-canvas-container > canvas {
+            aspect-ratio: 16 / 9;
+            max-width: 88vw;
+            max-height: 88vh;
         }
 
         #status-message {
@@ -276,6 +304,7 @@
         <button id="play-hiding-game" class="game-button" disabled>Find Hiding Mimesis</button>
         <button id="play-pronunciation-game" class="game-button" disabled>Prove you are not a Mimesis</button>
         <button id="play-spot-difference-game" class="game-button" disabled>Spot the Difference</button>
+        <button id="play-mimesis-pong-game" class="game-button" disabled>Mimesis Pong</button>
         <button id="more-games-button" class="control-button mt-8">More games coming soon</button>
         <p id="status-message" style="display: none;"></p>
     </div>
@@ -306,6 +335,7 @@
         const hidingButton       = document.getElementById('play-hiding-game');
         const pronunciationButton = document.getElementById('play-pronunciation-game');
         const spotDifferenceButton = document.getElementById('play-spot-difference-game');
+        const mimesisPongButton = document.getElementById('play-mimesis-pong-game');
         const statusMessage      = document.getElementById('status-message');
         const allGameButtons     = document.querySelectorAll('.game-button');
         const moreGamesButton    = document.getElementById('more-games-button');
@@ -332,6 +362,8 @@
             'human': 'human',
             'spot_the_difference': 'spot_the_difference',
             'spot': 'spot_the_difference',
+            'mimesis_pong': 'mimesis_pong',
+            'pong': 'mimesis_pong',
         };
 
         const TIER_LABEL = {1: {name: 'Bronze', emoji: '🥉'}, 2: {name: 'Silver', emoji: '🥈'}, 3: {name: 'Gold', emoji: '🥇'}};
@@ -532,7 +564,7 @@
             canvasContainer.style.display = 'flex';
 
             const gameScript = document.createElement('script');
-            gameScript.src = scriptPath;
+            gameScript.src = scriptPath + '?v=' + Date.now();
             gameScript.defer = true;
             gameScript.onload = () => {
                 if (typeof window[sketchFunctionName] === 'function') {
@@ -662,6 +694,7 @@
         hidingButton.addEventListener('click', () => loadGame('find_hiding_ori.js', 'sketchFindHidingGame'));
         pronunciationButton.addEventListener('click', () => loadGame('pronunciation_game.js', 'sketchPronunciationGame'));
         spotDifferenceButton.addEventListener('click', () => loadGame('spotdifference.js', 'sketchSpotTheDifference'));
+        mimesisPongButton.addEventListener('click', () => loadGame('mimesis_pong.js', 'sketchMimesisPong'));
 
         if (moreGamesButton) {
             moreGamesButton.disabled = false;
