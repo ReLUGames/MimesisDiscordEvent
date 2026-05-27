@@ -7,14 +7,12 @@ var sketchPronunciationGame = function (p) {
     function loadScript(src) {
         return new Promise((resolve, reject) => {
             if (document.querySelector(`script[src="${src}"]`)) {
-                console.log(`Script already loaded: ${src}`);
                 resolve();
                 return;
             }
             const script = document.createElement('script');
             script.src = src;
             script.onload = () => {
-                console.log(`Script loaded successfully: ${src}`);
                 resolve();
             };
             script.onerror = () => {
@@ -289,7 +287,6 @@ var sketchPronunciationGame = function (p) {
     let languageButtons = [];
 
     p.preload = function () {
-        console.log("Pronunciation Game: preload()");
 
         // Detect mobile
         isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -297,7 +294,6 @@ var sketchPronunciationGame = function (p) {
         try {
             characterImgIdle = p.loadImage(characterImageUrl,
                 (img) => {
-                    console.log("Character image loaded");
                     if (img.height > 0) characterAspectRatio = img.width / img.height;
                 },
                 (err) => {
@@ -307,7 +303,7 @@ var sketchPronunciationGame = function (p) {
             );
 
             fallbackBgImg = p.loadImage("src/ui/BG.webp",
-                () => console.log("Background loaded"),
+                () => {},
                 (err) => console.error("Failed to load background:", err)
             );
 
@@ -318,7 +314,6 @@ var sketchPronunciationGame = function (p) {
     };
 
     p.setup = function () {
-        console.log("Pronunciation Game: setup()");
 
         // Mobile-optimized canvas sizing
         const aspectRatio = 9 / 16;
@@ -394,7 +389,6 @@ var sketchPronunciationGame = function (p) {
     }
 
     async function initializeGame(langCode, langKey) {
-        console.log(`Initializing game for language: ${langCode}`);
         chosenLang = langCode;
 
         // Set translated text
@@ -604,8 +598,7 @@ var sketchPronunciationGame = function (p) {
                     });
                     window.dispatchEvent(scoreEvent);
                     scoreSaved = true;
-                    console.log(`Saved score: ${finalScore}`);
-                }
+                    }
                 break;
         }
     };
@@ -1208,7 +1201,6 @@ var sketchPronunciationGame = function (p) {
         const maxLength = Math.max(spokenString.length, targetString.length);
         const similarity = maxLength === 0 ? 1 : (maxLength - distance) / maxLength;
 
-        console.log(`Similarity: ${similarity.toFixed(2)}`);
         let correct = similarity >= SIMILARITY_THRESHOLD;
 
         isListening = false;
@@ -1246,7 +1238,6 @@ var sketchPronunciationGame = function (p) {
             recognition.onresult = async (event) => {
                 let spokenWord = event.results[0][0].transcript.trim();
                 feedbackMessage = "Checking... 🔍";
-                console.log(`Spoken: "${spokenWord}"`);
                 await checkAnswer(spokenWord);
             };
 
@@ -1300,7 +1291,6 @@ var sketchPronunciationGame = function (p) {
     }
 
     p.cleanup = function () {
-        console.log("Cleaning up Pronunciation Game resources...");
 
         // Stop recognition
         if (recognition && isListening) {

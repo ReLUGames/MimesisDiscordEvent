@@ -1,0 +1,9 @@
+# Local backup directories
+minigame_backup/
+
+# Local update archives — not checked in
+minigame_updatev*.zip
+
+# Local test scaffolding (filenames containing "localtest")
+localtest*.html
+*localtest*.html

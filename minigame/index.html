@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Content Security Policy. Allows the pinned CDNs + our inline game loader
+         + blob: URLs that p5.sound uses for its AudioWorklet. frame-ancestors
+         is intentionally omitted here — meta tags don't honor it; have nginx
+         send an X-Frame-Options: DENY header for real clickjacking protection. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' blob: data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'">
     <link rel="icon" type="image/jpeg" href="src/images/chicken_toy.jpg">
     <title>MIMESIS — Event Challenge</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/p5.min.js"
+            integrity="sha384-icvcGshxtiNlCvhaQB4zAsO3dE3w3oXvkzQa8ioCvPabaH7ELUbKkDi/GPkLR3Wp"
+            crossorigin="anonymous"></script>
     <script>
     // Polyfill: p5.sound 1.8.0 calls audioContext.audioWorklet.addModule(...) during
     // its addon init. On Chromium mobile, Firefox Android, and any browser where the
@@ -27,7 +34,9 @@
         }
     })();
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/addons/p5.sound.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.8.0/addons/p5.sound.min.js"
+            integrity="sha384-Ozi5ax1b+B/XBCzskytbAcQlgO0fcBp6gBOgS1SNQgR55vMk33RdVPAAAvB/8kA6"
+            crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -306,6 +315,7 @@
         <button id="play-pronunciation-game" class="game-button" disabled>Prove you are not a Mimesis</button>
         <button id="play-spot-difference-game" class="game-button" disabled>Spot the Difference</button>
         <button id="play-mimesis-pong-game" class="game-button" disabled>Mimesis Pong</button>
+        <button id="play-cursed-rain-game" class="game-button" disabled>Cursed Rain</button>
         <button id="more-games-button" class="control-button mt-8">More games coming soon</button>
         <p id="status-message" style="display: none;"></p>
     </div>
@@ -337,6 +347,7 @@
         const pronunciationButton = document.getElementById('play-pronunciation-game');
         const spotDifferenceButton = document.getElementById('play-spot-difference-game');
         const mimesisPongButton = document.getElementById('play-mimesis-pong-game');
+        const cursedRainButton = document.getElementById('play-cursed-rain-game');
         const statusMessage      = document.getElementById('status-message');
         const allGameButtons     = document.querySelectorAll('.game-button');
         const moreGamesButton    = document.getElementById('more-games-button');
@@ -357,6 +368,8 @@
         let expiresMinutes = null;
         let currentGameSalt = null;
         let currentCode = null;      // code displayed on win screen (so copy button copies the right one)
+        let activeIframe = null;
+        let activeIframeMessageHandler = null;
 
         const GAME_ID_ALIASES = {
             'hiding': 'hiding',
@@ -365,6 +378,8 @@
             'spot': 'spot_the_difference',
             'mimesis_pong': 'mimesis_pong',
             'pong': 'mimesis_pong',
+            'cursed_rain': 'cursed_rain',
+            'rain': 'cursed_rain',
         };
 
         const TIER_LABEL = {1: {name: 'Bronze', emoji: '🥉'}, 2: {name: 'Silver', emoji: '🥈'}, 3: {name: 'Gold', emoji: '🥇'}};
@@ -544,6 +559,11 @@
                 loadedGameScript.parentNode.removeChild(loadedGameScript);
                 loadedGameScript = null;
             }
+            if (activeIframeMessageHandler) {
+                window.removeEventListener('message', activeIframeMessageHandler);
+                activeIframeMessageHandler = null;
+            }
+            activeIframe = null;
             currentGameSalt = null;
             sessionStorage.removeItem('currentGameSalt');
 
@@ -586,6 +606,70 @@
             };
             document.body.appendChild(gameScript);
             loadedGameScript = gameScript;
+        }
+
+        // ------------------------------------------------------------------
+        // Iframe-based game loader (used for CURSED RAIN, which is a standalone
+        // Vite/TS build rather than a p5 sketch).
+        //
+        // Hand-off contract with the child page:
+        //   parent → iframe: { type: 'init', salt }            (after iframeReady)
+        //   iframe → parent: { type: 'iframeReady' }           (sent on boot)
+        //   iframe → parent: { type: 'gameComplete', detail }  (sent on game-over)
+        //
+        // We re-dispatch gameComplete as a CustomEvent so the existing
+        // window.gameComplete listener below handles win-screen flow identically
+        // to the p5 games.
+        // ------------------------------------------------------------------
+        function loadIframeGame(path) {
+            cleanupPreviousGame();
+
+            currentGameSalt = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            sessionStorage.setItem('currentGameSalt', currentGameSalt);
+
+            menuContainer.style.display = 'none';
+            canvasContainer.style.display = 'flex';
+
+            // Forward the codes bundle + expiry to the iframe via its own URL —
+            // the child's MimesisShell parses them the same way this page does.
+            const codesB64 = btoa(JSON.stringify(codesBundle))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            const expQuery = expiresMinutes ? `&exp=${expiresMinutes}` : '';
+            const url = `${path}?codes=${codesB64}${expQuery}`;
+
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.id = 'game-iframe';
+            iframe.setAttribute('allow', 'autoplay; gamepad');
+            iframe.style.cssText = [
+                'width: min(88vw, calc(88vh * 4 / 3))',
+                'height: min(88vh, calc(88vw * 3 / 4))',
+                'border: none',
+                'border-radius: 8px',
+                'box-shadow: 0 4px 24px rgba(0,0,0,0.35)',
+                'background: #000'
+            ].join('; ');
+            canvasContainer.appendChild(iframe);
+            activeIframe = iframe;
+
+            activeIframeMessageHandler = (event) => {
+                // Only trust messages from our iframe's contentWindow.
+                if (!activeIframe || event.source !== activeIframe.contentWindow) return;
+                const msg = event.data;
+                if (!msg || typeof msg !== 'object') return;
+
+                if (msg.type === 'iframeReady') {
+                    // Iframe booted — send it the salt so it can echo it back on game-over.
+                    activeIframe.contentWindow.postMessage(
+                        { type: 'init', salt: currentGameSalt },
+                        '*'
+                    );
+                } else if (msg.type === 'gameComplete') {
+                    // Re-dispatch as a CustomEvent so the existing handler picks it up.
+                    window.dispatchEvent(new CustomEvent('gameComplete', { detail: msg.detail }));
+                }
+            };
+            window.addEventListener('message', activeIframeMessageHandler);
         }
 
         const gameButtons = document.querySelectorAll('.game-button');
@@ -696,6 +780,8 @@
         pronunciationButton.addEventListener('click', () => loadGame('pronunciation_game.js', 'sketchPronunciationGame'));
         spotDifferenceButton.addEventListener('click', () => loadGame('spotdifference.js', 'sketchSpotTheDifference'));
         mimesisPongButton.addEventListener('click', () => loadGame('mimesis_pong.js', 'sketchMimesisPong'));
+        // CURSED RAIN ships as a built dist/ under minigame/cursed_rain/ — load it in an iframe.
+        cursedRainButton.addEventListener('click', () => loadIframeGame('cursed_rain/index.html'));
 
         if (moreGamesButton) {
             moreGamesButton.disabled = false;

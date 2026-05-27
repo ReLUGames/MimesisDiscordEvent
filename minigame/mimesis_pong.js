@@ -438,35 +438,26 @@ window.sketchMimesisPong = function(p) {
         //   .arcade-glow     → z 2  (CRT halo leaking around the bezel; behind the bg)
         //   <img arcadebg>   → z 3  (cabinet artwork on TOP of the canvas — bezel covers canvas overflow)
         //   .arcade-overlay  → z 4  (dark gradient cover over the whole cabinet for mood)
-        // Cabinet zoom: fill the viewport — height-bound on landscape, width-bound
-        // on portrait. The min() picks whichever dimension constrains so the cabinet
-        // fills as much of the screen as possible while preserving aspect. On mobile
-        // we additionally scale-up around the screen center so the CRT dominates.
+        // Cabinet fits the viewport with breathing room on the sides. On mobile
+        // portrait, viewport width constrains (leaves ~5vw padding each side).
+        // On landscape/desktop, the viewport height constrains (leaves vertical
+        // breathing room). The cabinet is never cropped.
         const cabinetAspect = ARCADE.imgW / ARCADE.imgH;     // 712 / 1025 ≈ 0.694
-        // Screen center (for transform-origin) in % of cabinet dimensions.
-        const screenCenterX = ARCADE.screenLeftPct + ARCADE.screenWidthPct / 2;
-        const screenCenterY = ARCADE.screenTopPct + ARCADE.screenHeightPct / 2;
 
         arcadeFrameEl = document.createElement('div');
         arcadeFrameEl.id = 'mimesis-pong-arcade';
         arcadeFrameEl.style.cssText = [
             'position: relative',
-            `width: min(98vw, calc(96vh * ${cabinetAspect}))`,
+            `width: min(90vw, calc(94vh * ${cabinetAspect}))`,
             'max-height: 100vh',
             'margin: 0 auto',
             'flex: 0 0 auto',
-            `transform-origin: ${screenCenterX}% ${screenCenterY}%`,
             // Soft drop shadow + subtle ambient glow for the cabinet itself
             'filter: drop-shadow(0 30px 50px rgba(0,0,0,0.7)) drop-shadow(0 0 26px rgba(120, 60, 200, 0.18))',
         ].join(';');
 
-        // Apply mobile zoom: scale the cabinet around the screen center. Container's
-        // overflow:hidden keeps the overflow from leaking. Re-applied on resize.
-        const applyZoom = () => {
-            const isMobile = window.matchMedia('(max-width: 820px), (orientation: portrait)').matches;
-            arcadeFrameEl.style.transform = isMobile ? 'scale(1.5)' : 'scale(1.0)';
-        };
-        applyZoom();
+        // No transform zoom — width formula already handles both orientations.
+        const applyZoom = () => { /* no-op; kept for resize-handler parity */ };
 
         // Screen — drawn FIRST so it sits behind the bg image
         arcadeScreenEl = document.createElement('div');
