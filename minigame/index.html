@@ -637,11 +637,24 @@
             const expQuery = expiresMinutes ? `&exp=${expiresMinutes}` : '';
             const url = `${path}?codes=${codesB64}${expQuery}`;
 
+            // Mobile/portrait phones: the iframe fills the entire viewport so
+            // the player can swipe anywhere on the screen to control the game
+            // (TouchInput inside the iframe listens on window). Desktop/landscape
+            // keeps the centered, letterboxed cabinet look used by the p5 games.
+            const isMobile = window.matchMedia('(max-width: 820px), (orientation: portrait)').matches;
             const iframe = document.createElement('iframe');
             iframe.src = url;
             iframe.id = 'game-iframe';
             iframe.setAttribute('allow', 'autoplay; gamepad');
-            iframe.style.cssText = [
+            iframe.style.cssText = isMobile ? [
+                'position: fixed',
+                'inset: 0',
+                'width: 100vw',
+                'height: 100vh',
+                'border: none',
+                'background: #000',
+                'z-index: 1000'
+            ].join('; ') : [
                 'width: min(88vw, calc(88vh * 4 / 3))',
                 'height: min(88vh, calc(88vw * 3 / 4))',
                 'border: none',
